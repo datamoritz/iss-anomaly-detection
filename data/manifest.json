@@ -1,0 +1,24 @@
+{
+  "started_at_utc": "2026-04-06T23:59:26.258574+00:00",
+  "selected_items": [
+    "S0000004",
+    "NODE3000012",
+    "P1000003",
+    "NODE3000013",
+    "S1000003",
+    "USLAB000059",
+    "NODE3000005",
+    "NODE3000009"
+  ],
+  "schema_fields": [
+    "received_at_utc",
+    "received_unix_ms",
+    "item",
+    "value_raw",
+    "value_numeric",
+    "source_timestamp_raw",
+    "source"
+  ],
+  "output_root": "data/raw",
+  "version": "1.0"
+}

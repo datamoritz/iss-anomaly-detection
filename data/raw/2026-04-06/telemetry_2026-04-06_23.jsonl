@@ -1,0 +1,64 @@
+{"received_at_utc": "2026-04-06T23:52:15.470769+00:00", "item": "S0000004", "value": "311.0302734375", "timestamp": "2327.8701663888824"}
+{"received_at_utc": "2026-04-06T23:52:15.472070+00:00", "item": "NODE3000012", "value": "17.1698589324951171875", "timestamp": "2327.8693336110646"}
+{"received_at_utc": "2026-04-06T23:52:15.472267+00:00", "item": "P1000003", "value": "4.515141963958740234375", "timestamp": "2327.8698622222078"}
+{"received_at_utc": "2026-04-06T23:52:15.472516+00:00", "item": "NODE3000013", "value": "4.624999523162841796875", "timestamp": "2327.8601397222283"}
+{"received_at_utc": "2026-04-06T23:52:15.472736+00:00", "item": "S1000003", "value": "4.07713603973388671875", "timestamp": "2327.867639999986"}
+{"received_at_utc": "2026-04-06T23:52:15.472887+00:00", "item": "USLAB000059", "value": "23.511928558349609375", "timestamp": "2327.8697783333064"}
+{"received_at_utc": "2026-04-06T23:52:15.473017+00:00", "item": "NODE3000009", "value": "42.95999908447265625", "timestamp": "2327.863529444403"}
+{"received_at_utc": "2026-04-06T23:52:15.473155+00:00", "item": "NODE3000005", "value": "37", "timestamp": "2327.703305555582"}
+{"received_at_utc": "2026-04-06T23:52:15.473224+00:00", "item": "P1000003", "value": "4.452569484710693359375", "timestamp": "2327.870139999986"}
+{"received_at_utc": "2026-04-06T23:52:16.220115+00:00", "item": "S0000004", "value": "310.9698486328125", "timestamp": "2327.8704441666605"}
+{"received_at_utc": "2026-04-06T23:52:16.220444+00:00", "item": "USLAB000059", "value": "23.574794769287109375", "timestamp": "2327.8703338888618"}
+{"received_at_utc": "2026-04-06T23:52:17.205801+00:00", "item": "S0000004", "value": "310.9149169921875", "timestamp": "2327.870721944438"}
+{"received_at_utc": "2026-04-06T23:52:18.304980+00:00", "item": "S0000004", "value": "310.865478515625", "timestamp": "2327.870999722216"}
+{"received_at_utc": "2026-04-06T23:52:18.333443+00:00", "item": "USLAB000059", "value": "23.511928558349609375", "timestamp": "2327.8708894444176"}
+{"received_at_utc": "2026-04-06T23:52:19.206714+00:00", "item": "S0000004", "value": "310.8050537109375", "timestamp": "2327.8712774999935"}
+{"received_at_utc": "2026-04-06T23:52:19.234836+00:00", "item": "USLAB000059", "value": "23.574794769287109375", "timestamp": "2327.8711672221953"}
+{"received_at_utc": "2026-04-06T23:52:19.334187+00:00", "item": "NODE3000012", "value": "17.106964111328125", "timestamp": "2327.871278055509"}
+{"received_at_utc": "2026-04-06T23:52:19.462450+00:00", "item": "P1000003", "value": "4.515141963958740234375", "timestamp": "2327.8712511110966"}
+{"received_at_utc": "2026-04-06T23:52:20.205704+00:00", "item": "S0000004", "value": "310.74462890625", "timestamp": "2327.871555277771"}
+{"received_at_utc": "2026-04-06T23:52:21.209595+00:00", "item": "S0000004", "value": "310.6732177734375", "timestamp": "2327.8718330555494"}
+{"received_at_utc": "2026-04-06T23:52:21.333711+00:00", "item": "NODE3000012", "value": "17.1698589324951171875", "timestamp": "2327.8718336110646"}
+{"received_at_utc": "2026-04-06T23:52:22.220695+00:00", "item": "S0000004", "value": "310.6072998046875", "timestamp": "2327.872110833327"}
+{"received_at_utc": "2026-04-06T23:52:22.343115+00:00", "item": "NODE3000012", "value": "17.106964111328125", "timestamp": "2327.8721113888423"}
+{"received_at_utc": "2026-04-06T23:52:22.343410+00:00", "item": "P1000003", "value": "4.452569484710693359375", "timestamp": "2327.87208444443"}
+{"received_at_utc": "2026-04-06T23:52:23.208412+00:00", "item": "S0000004", "value": "310.546875", "timestamp": "2327.8723886111047"}
+{"received_at_utc": "2026-04-06T23:52:23.334918+00:00", "item": "USLAB000059", "value": "23.511928558349609375", "timestamp": "2327.8722783333064"}
+{"received_at_utc": "2026-04-06T23:52:23.335918+00:00", "item": "NODE3000012", "value": "17.1698589324951171875", "timestamp": "2327.87238916662"}
+{"received_at_utc": "2026-04-06T23:52:23.463184+00:00", "item": "P1000003", "value": "4.515141963958740234375", "timestamp": "2327.872362222208"}
+{"received_at_utc": "2026-04-06T23:52:24.246264+00:00", "item": "S0000004", "value": "310.4864501953125", "timestamp": "2327.8726663888824"}
+{"received_at_utc": "2026-04-06T23:52:24.334157+00:00", "item": "NODE3000012", "value": "17.106964111328125", "timestamp": "2327.8726669443977"}
+{"received_at_utc": "2026-04-06T23:52:25.209467+00:00", "item": "S0000004", "value": "310.43701171875", "timestamp": "2327.87294416666"}
+{"received_at_utc": "2026-04-06T23:52:25.209680+00:00", "item": "USLAB000059", "value": "23.574794769287109375", "timestamp": "2327.872833888862"}
+{"received_at_utc": "2026-04-06T23:52:25.335500+00:00", "item": "NODE3000012", "value": "17.1698589324951171875", "timestamp": "2327.872944722176"}
+{"received_at_utc": "2026-04-06T23:52:25.463735+00:00", "item": "NODE3000013", "value": "4.687499523162841796875", "timestamp": "2327.8729175000058"}
+{"received_at_utc": "2026-04-06T23:52:26.208041+00:00", "item": "S0000004", "value": "310.382080078125", "timestamp": "2327.8732219444382"}
+{"received_at_utc": "2026-04-06T23:59:27.025124+00:00", "received_unix_ms": 1775519967025, "item": "S0000004", "value_raw": "284.970703125", "value_numeric": 284.970703125, "source_timestamp_raw": "2327.9898886111046", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:27.026444+00:00", "received_unix_ms": 1775519967026, "item": "P1000003", "value_raw": "4.452569484710693359375", "value_numeric": 4.452569484710693, "source_timestamp_raw": "2327.98958444443", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:27.026565+00:00", "received_unix_ms": 1775519967026, "item": "NODE3000012", "value_raw": "17.1698589324951171875", "value_numeric": 17.169858932495117, "source_timestamp_raw": "2327.986278055509", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:27.026645+00:00", "received_unix_ms": 1775519967026, "item": "S1000003", "value_raw": "4.139708042144775390625", "value_numeric": 4.139708042144775, "source_timestamp_raw": "2327.986251111097", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:27.026716+00:00", "received_unix_ms": 1775519967026, "item": "USLAB000059", "value_raw": "23.511928558349609375", "value_numeric": 23.51192855834961, "source_timestamp_raw": "2327.984778333306", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:27.026779+00:00", "received_unix_ms": 1775519967026, "item": "NODE3000005", "value_raw": "37", "value_numeric": 37.0, "source_timestamp_raw": "2327.703305555582", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:27.026844+00:00", "received_unix_ms": 1775519967026, "item": "NODE3000009", "value_raw": "42.970001220703125", "value_numeric": 42.970001220703125, "source_timestamp_raw": "2327.988529444403", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:27.026906+00:00", "received_unix_ms": 1775519967026, "item": "NODE3000013", "value_raw": "4.562499523162841796875", "value_numeric": 4.562499523162842, "source_timestamp_raw": "2327.9784730555616", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:27.208190+00:00", "received_unix_ms": 1775519967208, "item": "S0000004", "value_raw": "284.9102783203125", "value_numeric": 284.9102783203125, "source_timestamp_raw": "2327.9901663888827", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:28.189103+00:00", "received_unix_ms": 1775519968189, "item": "S0000004", "value_raw": "284.849853515625", "value_numeric": 284.849853515625, "source_timestamp_raw": "2327.9904441666604", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:29.203724+00:00", "received_unix_ms": 1775519969203, "item": "S0000004", "value_raw": "284.7894287109375", "value_numeric": 284.7894287109375, "source_timestamp_raw": "2327.990721944438", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:30.186664+00:00", "received_unix_ms": 1775519970186, "item": "S0000004", "value_raw": "284.72900390625", "value_numeric": 284.72900390625, "source_timestamp_raw": "2327.9909997222157", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:31.205407+00:00", "received_unix_ms": 1775519971205, "item": "S0000004", "value_raw": "284.6685791015625", "value_numeric": 284.6685791015625, "source_timestamp_raw": "2327.9912774999934", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:31.331631+00:00", "received_unix_ms": 1775519971331, "item": "NODE3000009", "value_raw": "42.95999908447265625", "value_numeric": 42.959999084472656, "source_timestamp_raw": "2327.9913072221807", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:32.204561+00:00", "received_unix_ms": 1775519972204, "item": "S0000004", "value_raw": "284.608154296875", "value_numeric": 284.608154296875, "source_timestamp_raw": "2327.9915552777716", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:32.463868+00:00", "received_unix_ms": 1775519972463, "item": "P1000003", "value_raw": "4.515141963958740234375", "value_numeric": 4.51514196395874, "source_timestamp_raw": "2327.9915288888747", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:32.464166+00:00", "received_unix_ms": 1775519972464, "item": "S1000003", "value_raw": "4.07713603973388671875", "value_numeric": 4.077136039733887, "source_timestamp_raw": "2327.9915288888747", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:33.232259+00:00", "received_unix_ms": 1775519973232, "item": "S0000004", "value_raw": "284.5477294921875", "value_numeric": 284.5477294921875, "source_timestamp_raw": "2327.9918330555493", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:33.462260+00:00", "received_unix_ms": 1775519973462, "item": "S1000003", "value_raw": "4.139708042144775390625", "value_numeric": 4.139708042144775, "source_timestamp_raw": "2327.9918066666523", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:34.206958+00:00", "received_unix_ms": 1775519974206, "item": "S0000004", "value_raw": "284.4873046875", "value_numeric": 284.4873046875, "source_timestamp_raw": "2327.992110833327", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:34.334509+00:00", "received_unix_ms": 1775519974334, "item": "P1000003", "value_raw": "4.452569484710693359375", "value_numeric": 4.452569484710693, "source_timestamp_raw": "2327.99208444443", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:35.218824+00:00", "received_unix_ms": 1775519975218, "item": "S0000004", "value_raw": "284.4268798828125", "value_numeric": 284.4268798828125, "source_timestamp_raw": "2327.9923886111046", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:36.203686+00:00", "received_unix_ms": 1775519976203, "item": "S0000004", "value_raw": "284.366455078125", "value_numeric": 284.366455078125, "source_timestamp_raw": "2327.9926663888828", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:36.331957+00:00", "received_unix_ms": 1775519976331, "item": "P1000003", "value_raw": "4.515141963958740234375", "value_numeric": 4.51514196395874, "source_timestamp_raw": "2327.992639999986", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:37.232366+00:00", "received_unix_ms": 1775519977232, "item": "S0000004", "value_raw": "284.3060302734375", "value_numeric": 284.3060302734375, "source_timestamp_raw": "2327.9929441666604", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:37.445489+00:00", "received_unix_ms": 1775519977445, "item": "P1000003", "value_raw": "4.452569484710693359375", "value_numeric": 4.452569484710693, "source_timestamp_raw": "2327.9929177777635", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:38.189258+00:00", "received_unix_ms": 1775519978189, "item": "S0000004", "value_raw": "284.24560546875", "value_numeric": 284.24560546875, "source_timestamp_raw": "2327.993221944438", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:38.445167+00:00", "received_unix_ms": 1775519978445, "item": "P1000003", "value_raw": "4.515141963958740234375", "value_numeric": 4.51514196395874, "source_timestamp_raw": "2327.993195555541", "source": "iss_lightstreamer_public"}
+{"received_at_utc": "2026-04-06T23:59:39.205742+00:00", "received_unix_ms": 1775519979205, "item": "S0000004", "value_raw": "284.1851806640625", "value_numeric": 284.1851806640625, "source_timestamp_raw": "2327.993499722216", "source": "iss_lightstreamer_public"}
