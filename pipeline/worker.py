@@ -9,6 +9,18 @@ import psycopg2
 import redis
 from kafka import KafkaConsumer, KafkaProducer
 
+import json
+from pathlib import Path
+
+# Load rules from config file
+RULES_PATH = Path(__file__).resolve().parents[1] / "config" / "rules.json"
+
+with open(RULES_PATH, "r") as f:
+    rules = json.load(f)
+
+THRESHOLD_RULES = rules["threshold_rules"]
+JUMP_RULES = rules["jump_rules"]
+
 
 KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
 TELEMETRY_TOPIC = "telemetry.raw"
@@ -23,31 +35,6 @@ POSTGRES_DB = "iss_telemetry"
 POSTGRES_USER = "iss_user"
 POSTGRES_PASSWORD = "iss_password"
 
-
-# Very simple first-pass rules.
-# Tune later after observing real data longer.
-THRESHOLD_RULES = {
-    "USLAB000059": {"min": 22.0, "max": 25.0},      # Cabin temperature
-    "NODE3000012": {"min": 16.5, "max": 18.0},      # Avionics cooling temp
-    "NODE3000013": {"min": 3.8, "max": 4.8},        # Air cooling temp
-    "P1000003": {"min": 3.5, "max": 5.0},           # Loop B PM out temp
-    "S1000003": {"min": 3.5, "max": 5.0},           # Loop A PM out temp
-    "NODE3000009": {"min": 40.0, "max": 50.0},      # Water tank
-    "NODE3000005": {"min": 0.0, "max": 100.0},      # Urine tank %
-    "S0000004": {"min": 0.0, "max": 360.0},         # SARJ angle
-}
-
-# Sudden jump thresholds by item.
-JUMP_RULES = {
-    "USLAB000059": 0.5,
-    "NODE3000012": 0.3,
-    "NODE3000013": 0.3,
-    "P1000003": 0.4,
-    "S1000003": 0.4,
-    "NODE3000009": 0.2,
-    "NODE3000005": 2.0,
-    "S0000004": 10,
-}
 
 running = True
 

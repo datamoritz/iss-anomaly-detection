@@ -17,4 +17,6 @@ class AnomalyEvent(BaseModel):
     details: dict
     source: str
 
-    
+class SimulateAnomalyRequest(BaseModel):
+    item: str
+    mode: str
