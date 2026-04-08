@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import health, telemetry, anomalies, simulation
+from app.routers import health, telemetry, anomalies, simulation, items
 
 app = FastAPI(
     title="ISS Telemetry API",
@@ -13,6 +13,7 @@ def root():
 
 
 app.include_router(health.router)
+app.include_router(items.router, prefix="/api/v1")
 app.include_router(telemetry.router, prefix="/api/v1")
 app.include_router(anomalies.router, prefix="/api/v1")
 app.include_router(simulation.router, prefix="/api/v1")

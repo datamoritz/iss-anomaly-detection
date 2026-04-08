@@ -1,0 +1,58 @@
+ITEM_METADATA = [
+    {
+        "item": "S0000004",
+        "label": "Solar Joint Angle",
+        "unit": "deg",
+        "category": "Power / Orientation",
+        "description": "Solar Alpha Rotary Joint angular position.",
+    },
+    {
+        "item": "NODE3000012",
+        "label": "Node 3 Avionics Cooling Fluid Temp",
+        "unit": "°C",
+        "category": "Thermal",
+        "description": "Cooling loop temperature for Node 3 avionics.",
+    },
+    {
+        "item": "P1000003",
+        "label": "Loop B PM Outlet Temp",
+        "unit": "°C",
+        "category": "Thermal",
+        "description": "Loop B pump module outlet temperature.",
+    },
+    {
+        "item": "NODE3000013",
+        "label": "Node 3 Air Cooling Fluid Temp",
+        "unit": "°C",
+        "category": "Thermal",
+        "description": "Air cooling fluid temperature in Node 3.",
+    },
+    {
+        "item": "S1000003",
+        "label": "Loop A PM Outlet Temp",
+        "unit": "°C",
+        "category": "Thermal",
+        "description": "Loop A pump module outlet temperature.",
+    },
+    {
+        "item": "USLAB000059",
+        "label": "Cabin Temperature",
+        "unit": "°C",
+        "category": "Habitat / Environment",
+        "description": "Cabin temperature inside the U.S. Laboratory module.",
+    },
+    {
+        "item": "NODE3000005",
+        "label": "Urine Tank Quantity",
+        "unit": "%",
+        "category": "Life Support",
+        "description": "Estimated fill level of the urine storage tank.",
+    },
+    {
+        "item": "NODE3000009",
+        "label": "Water Tank Quantity",
+        "unit": "%",
+        "category": "Life Support",
+        "description": "Estimated fill level of the water storage tank.",
+    },
+]

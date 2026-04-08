@@ -20,3 +20,10 @@ class AnomalyEvent(BaseModel):
 class SimulateAnomalyRequest(BaseModel):
     item: str
     mode: str
+
+class ItemMetadata(BaseModel):
+    item: str
+    label: str
+    unit: str
+    category: str
+    description: str
