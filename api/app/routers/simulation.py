@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
-from app.schemas import SimulateAnomalyRequest
-from app.services.simulator import publish_simulated_anomaly
+from ..schemas import SimulateAnomalyRequest
+from ..services.simulator import publish_simulated_anomaly
 
 router = APIRouter(tags=["simulation"])
 

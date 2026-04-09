@@ -1,19 +1,21 @@
 import json
 import signal
-import sys
-import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Optional
 
-import psycopg2
+from config.settings import settings
+from config.runtime import (
+    create_postgres_connection,
+    create_redis_client,
+    ensure_postgres_schema,
+)
+
 import redis
 from kafka import KafkaConsumer, KafkaProducer
 
-import json
-from pathlib import Path
-
 # Load rules from config file
-RULES_PATH = Path(__file__).resolve().parents[1] / "config" / "rules.json"
+RULES_PATH = Path(settings.RULES_FILE_PATH)
 
 with open(RULES_PATH, "r") as f:
     rules = json.load(f)
@@ -22,19 +24,9 @@ THRESHOLD_RULES = rules["threshold_rules"]
 JUMP_RULES = rules["jump_rules"]
 
 
-KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
-TELEMETRY_TOPIC = "telemetry.raw"
-ANOMALY_TOPIC = "anomaly.events"
-
-REDIS_HOST = "localhost"
-REDIS_PORT = 6379
-
-POSTGRES_HOST = "localhost"
-POSTGRES_PORT = 5432
-POSTGRES_DB = "iss_telemetry"
-POSTGRES_USER = "iss_user"
-POSTGRES_PASSWORD = "iss_password"
-
+KAFKA_BOOTSTRAP_SERVERS = settings.KAFKA_BOOTSTRAP_SERVERS
+TELEMETRY_TOPIC = settings.KAFKA_TELEMETRY_TOPIC
+ANOMALY_TOPIC = settings.KAFKA_ANOMALY_TOPIC
 
 running = True
 
@@ -49,7 +41,7 @@ def create_kafka_consumer() -> KafkaConsumer:
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
         auto_offset_reset="earliest",
         enable_auto_commit=True,
-        group_id="iss-anomaly-worker-v1",
+        group_id=settings.KAFKA_CONSUMER_GROUP,
         value_deserializer=lambda m: json.loads(m.decode("utf-8")),
         key_deserializer=lambda k: k.decode("utf-8") if k else None,
     )
@@ -65,48 +57,15 @@ def create_kafka_producer() -> KafkaProducer:
     )
 
 
-def create_redis_client() -> redis.Redis:
-    return redis.Redis(
-        host=REDIS_HOST,
-        port=REDIS_PORT,
-        decode_responses=True,
-    )
-
-
-def create_postgres_connection():
-    return psycopg2.connect(
-        host=POSTGRES_HOST,
-        port=POSTGRES_PORT,
-        dbname=POSTGRES_DB,
-        user=POSTGRES_USER,
-        password=POSTGRES_PASSWORD,
-    )
-
-
-def ensure_tables(conn) -> None:
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS anomalies (
-                id SERIAL PRIMARY KEY,
-                detected_at_utc TEXT NOT NULL,
-                item TEXT NOT NULL,
-                anomaly_type TEXT NOT NULL,
-                value_numeric DOUBLE PRECISION,
-                previous_value_numeric DOUBLE PRECISION,
-                threshold_value DOUBLE PRECISION,
-                details_json TEXT NOT NULL,
-                source TEXT NOT NULL
-            )
-            """
-        )
-    conn.commit()
-
-
 def save_latest_state(r: redis.Redis, event: dict[str, Any]) -> None:
     item = event["item"]
-    key = f"latest:{item}"
-    r.set(key, json.dumps(event))
+    r.hset("latest_state", item, json.dumps(event))
+
+
+def should_update_latest_state(event: dict[str, Any]) -> bool:
+    # Keep Redis latest_state reserved for real telemetry so simulation
+    # does not leave the chart stuck until the next collector sample arrives.
+    return event.get("source") != "simulation_api"
 
 
 def build_anomaly_event(
@@ -116,6 +75,7 @@ def build_anomaly_event(
     previous_value_numeric: Optional[float],
     threshold_value: Optional[float],
     details: dict[str, Any],
+    trigger_source: Optional[str],
 ) -> dict[str, Any]:
     return {
         "detected_at_utc": now_utc_iso(),
@@ -126,6 +86,8 @@ def build_anomaly_event(
         "threshold_value": threshold_value,
         "details": details,
         "source": "threshold_worker_v1",
+        "trigger_source": trigger_source,
+        "is_simulated": trigger_source == "simulation_api",
     }
 
 
@@ -141,9 +103,11 @@ def insert_anomaly(conn, anomaly_event: dict[str, Any]) -> None:
                 previous_value_numeric,
                 threshold_value,
                 details_json,
-                source
+                source,
+                trigger_source,
+                is_simulated
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 anomaly_event["detected_at_utc"],
@@ -154,12 +118,18 @@ def insert_anomaly(conn, anomaly_event: dict[str, Any]) -> None:
                 anomaly_event["threshold_value"],
                 json.dumps(anomaly_event["details"]),
                 anomaly_event["source"],
+                anomaly_event["trigger_source"],
+                anomaly_event["is_simulated"],
             ),
         )
     conn.commit()
 
 
-def detect_threshold_breach(item: str, value_numeric: Optional[float]) -> Optional[dict[str, Any]]:
+def detect_threshold_breach(
+    item: str,
+    value_numeric: Optional[float],
+    trigger_source: Optional[str],
+) -> Optional[dict[str, Any]]:
     if value_numeric is None:
         return None
 
@@ -178,6 +148,7 @@ def detect_threshold_breach(item: str, value_numeric: Optional[float]) -> Option
             previous_value_numeric=None,
             threshold_value=min_v,
             details={"min_allowed": min_v, "max_allowed": max_v},
+            trigger_source=trigger_source,
         )
 
     if value_numeric > max_v:
@@ -188,6 +159,7 @@ def detect_threshold_breach(item: str, value_numeric: Optional[float]) -> Option
             previous_value_numeric=None,
             threshold_value=max_v,
             details={"min_allowed": min_v, "max_allowed": max_v},
+            trigger_source=trigger_source,
         )
 
     return None
@@ -197,6 +169,7 @@ def detect_sudden_jump(
     item: str,
     value_numeric: Optional[float],
     previous_value_numeric: Optional[float],
+    trigger_source: Optional[str],
 ) -> Optional[dict[str, Any]]:
     if value_numeric is None or previous_value_numeric is None:
         return None
@@ -214,6 +187,7 @@ def detect_sudden_jump(
             previous_value_numeric=previous_value_numeric,
             threshold_value=jump_threshold,
             details={"delta": delta},
+            trigger_source=trigger_source,
         )
 
     return None
@@ -236,7 +210,7 @@ def main() -> None:
 
     print("[startup] connecting to Postgres...")
     pg_conn = create_postgres_connection()
-    ensure_tables(pg_conn)
+    ensure_postgres_schema(pg_conn)
     print("[startup] Postgres connected and tables ensured")
 
     print("[startup] creating Kafka producer...")
@@ -261,10 +235,16 @@ def main() -> None:
                     event = message.value
                     item = event["item"]
                     value_numeric = event.get("value_numeric")
+                    trigger_source = event.get("source")
 
-                    save_latest_state(redis_client, event)
+                    if should_update_latest_state(event):
+                        save_latest_state(redis_client, event)
 
-                    threshold_anomaly = detect_threshold_breach(item, value_numeric)
+                    threshold_anomaly = detect_threshold_breach(
+                        item,
+                        value_numeric,
+                        trigger_source,
+                    )
                     if threshold_anomaly is not None:
                         insert_anomaly(pg_conn, threshold_anomaly)
                         producer.send(ANOMALY_TOPIC, key=item, value=threshold_anomaly)
@@ -272,7 +252,12 @@ def main() -> None:
                         print(f"[anomaly] threshold breach: {threshold_anomaly}")
 
                     previous_value_numeric = previous_values.get(item)
-                    jump_anomaly = detect_sudden_jump(item, value_numeric, previous_value_numeric)
+                    jump_anomaly = detect_sudden_jump(
+                        item,
+                        value_numeric,
+                        previous_value_numeric,
+                        trigger_source,
+                    )
                     if jump_anomaly is not None:
                         insert_anomaly(pg_conn, jump_anomaly)
                         producer.send(ANOMALY_TOPIC, key=item, value=jump_anomaly)

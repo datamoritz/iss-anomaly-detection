@@ -1,10 +1,12 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
 lightstreamer-client-lib==2.2.2
 kafka-python==2.0.2
 redis==5.0.7
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.11
 pyarrow==21.0.0
 pandas==2.2.2
 matplotlib==3.9.0
 jupyter==1.0.0
 notebook==7.2.1
-psycopg2-binary==2.9.11
+pydantic-settings==2.0.3

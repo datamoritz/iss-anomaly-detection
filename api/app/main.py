@@ -1,15 +1,46 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
-from app.routers import health, telemetry, anomalies, simulation, items
+from fastapi.middleware.cors import CORSMiddleware
+
+from config.runtime import create_postgres_connection, ensure_postgres_schema
+
+from .config import settings
+from .routers import health, telemetry, anomalies, simulation, items
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    conn = None
+    try:
+        conn = create_postgres_connection()
+        ensure_postgres_schema(conn)
+        yield
+    finally:
+        if conn is not None:
+            conn.close()
 
 app = FastAPI(
-    title="ISS Telemetry API",
+    title=settings.APP_NAME,
     version="0.1.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
 @app.get("/")
 def root():
-    return {"message": "ISS Telemetry API is running"}
+    return {
+        "message": f"{settings.APP_NAME} is running",
+        "env": settings.APP_ENV,
+    }
 
 
 app.include_router(health.router)

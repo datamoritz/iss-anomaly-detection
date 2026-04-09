@@ -1,42 +1,76 @@
-# ISS Telemetry Collector
+# ISS Telemetry Pipeline
 
-This project currently focuses on simple ISS public telemetry collection and offline analysis.
+Collects public ISS telemetry, stores raw hourly JSONL files, processes live events through Kafka, detects anomalies, and exposes live state through a FastAPI backend.
 
-## Current State
+## Current Shape
 
-- `main.py`
-  - Long-running collector for Linux/server use
-  - Connects to the public ISS Lightstreamer feed
-  - Subscribes to 8 selected telemetry items
-  - Writes hourly rotating raw JSONL files
-- `collect_1h_experiment.py`
-  - Earlier 1-hour experiment script kept for reference
-- `summarize_folder.py`
-  - Reads saved hourly JSONL files and prints simple per-item counts
-- `export_to_parquet.py`
-  - Converts one or more raw JSONL files into one Parquet file
-- `analyze_telemetry.ipynb`
-  - Simple notebook for inspecting saved telemetry files
+- `collector/`
+  - raw source-of-truth collection
+  - hourly JSONL rotation
+  - folder summary and Parquet export helpers
+- `pipeline/`
+  - Kafka ingest from Lightstreamer
+  - worker for latest-state caching and anomaly detection
+- `api/`
+  - FastAPI backend for items, latest telemetry, recent anomalies, and simulation
+- `frontend/`
+  - standalone Vite/React dashboard app for live telemetry and anomaly monitoring
+- `config/`
+  - shared item metadata and anomaly rules
+- `analysis/`
+  - notebook-based offline inspection
 
-## Raw Storage
+## Architecture
 
-Raw files are the source of truth.
+```text
+Lightstreamer (ISS telemetry)
+        ↓
+pipeline/ingest_to_kafka.py
+        ↓
+Kafka (telemetry.raw)
+        ↓
+pipeline/worker.py
+   ├─ Redis (latest state)
+   ├─ PostgreSQL (anomaly history)
+   └─ Kafka (anomaly.events)
+        ↓
+FastAPI backend
+        ↓
+Frontend
+```
 
-Path format:
+Current frontend MVP:
+
+- metadata-driven parameter selector
+- live sampled telemetry chart
+- in-session history placeholder controls
+- anomaly markers on the chart
+- recent anomalies table
+- simulation controls
+
+## Raw Collector
+
+Main collector:
+
+- `collector/main.py`
+
+Reference script kept for documentation:
+
+- `collector/collect_1h_experiment.py`
+
+Raw storage format:
 
 ```text
 data/raw/YYYY-MM-DD/telemetry_YYYY-MM-DD_HH.jsonl
 ```
 
-Example:
+Manifest:
 
 ```text
-data/raw/2026-04-06/telemetry_2026-04-06_23.jsonl
+data/manifest.json
 ```
 
-## Raw JSONL Schema
-
-Each row uses this stable schema:
+Stable raw schema:
 
 - `received_at_utc`
 - `received_unix_ms`
@@ -46,11 +80,7 @@ Each row uses this stable schema:
 - `source_timestamp_raw`
 - `source`
 
-The collector also writes:
-
-- `data/manifest.json`
-
-## Selected Items In `main.py`
+Collector item set:
 
 - `S0000004`
 - `NODE3000012`
@@ -61,125 +91,142 @@ The collector also writes:
 - `NODE3000005`
 - `NODE3000009`
 
+## API
+
+Main app:
+
+- `api/app/main.py`
+
+Current endpoints:
+
+- `GET /`
+- `GET /health`
+- `GET /api/v1/items`
+- `GET /api/v1/items/{item_id}`
+- `GET /api/v1/telemetry/latest`
+- `GET /api/v1/telemetry/latest/{item_id}`
+- `GET /api/v1/anomalies/recent`
+- `GET /api/v1/anomalies/recent/{item_id}`
+- `POST /api/v1/simulate-anomaly`
+
+Notes:
+
+- API config now comes from app settings / environment variables.
+- CORS middleware is enabled from settings.
+- Latest telemetry is read from Redis hash `latest_state`.
+- `/health` now checks Redis, Postgres, and Kafka.
+- `/health/live` is a simple liveness route.
+- Postgres schema setup is deterministic and runs from shared code on API startup and worker startup.
+
 ## Setup
 
 ```bash
-cd "/Users/moritzknodler/Documents/00_Lectures/0_Spring 2026/Datacenters/Project/Code"
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Run Collector
+Create a local env file when needed:
 
 ```bash
-source .venv/bin/activate
-python main.py
+cp .env.example .env
 ```
 
-Optional count interval:
+## Run Commands
+
+Raw collector:
 
 ```bash
-python main.py --counts-interval 60
+python -m collector.main
+python -m collector.main --counts-interval 60
 ```
 
-## Summarize Saved Files
+Summarize raw files:
 
 ```bash
-source .venv/bin/activate
-python summarize_folder.py data/raw --ignore-current-hour
+python -m collector.summarize_folder data/raw --ignore-current-hour
 ```
 
-## Export To Parquet
+Export to Parquet:
 
 ```bash
-source .venv/bin/activate
-python export_to_parquet.py data/raw --output data/parquet/telemetry_all.parquet
+python -m collector.export_to_parquet data/raw --output data/parquet/telemetry_all.parquet
 ```
 
-## Notes
+Kafka ingest:
 
-- JSONL remains the raw source of truth.
-- Parquet export is offline only and does not affect collection.
-- No Kafka, Redis, Postgres, FastAPI, or Docker are part of the current system.
-- For a 2-week server run, use `tmux` or `systemd`.
+```bash
+python -m pipeline.ingest_to_kafka
+```
 
+Worker:
 
+```bash
+python -m pipeline.worker
+```
 
+API:
 
---------------
+```bash
+uvicorn api.app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-Lightstreamer (ISS public feed via WebSocket)
-        ↓
-ingest_to_kafka.py (producer)
-        ↓
-Kafka (topic: telemetry.raw)
-        ↓
-worker.py (consumer + processing)
-   ├─ Redis (latest state cache)
-   ├─ PostgreSQL (anomaly history)
-   └─ Kafka (topic: anomaly.events)
+Frontend:
 
+```bash
+cd frontend
+npm install
+npm run dev -- --port 5173
+```
 
-   # ISS Telemetry Pipeline
-
-This project collects real ISS public telemetry, stores it as raw files, and processes it through a simple real-time streaming pipeline for anomaly detection.
-
-The system started as an offline telemetry collection setup and was extended into a small datacenter-style MVP using Kafka, Redis, PostgreSQL, and Docker.
-
----
-
-## Current Scope
-
-This repository currently includes two parallel but connected parts:
-
-1. **Raw telemetry collection and offline analysis**
-2. **Real-time streaming pipeline for anomaly detection**
-
----
-
-# 1. Raw Telemetry Collection
-
-## Purpose
-
-The raw collector is used to continuously gather ISS telemetry over time for:
-- exploratory analysis
-- feature understanding
-- future anomaly detection model development
-- historical inspection and plotting
-
-Raw files are treated as the **source of truth**.
-
----
-
-## Main Collector
-
-### `main.py`
-Long-running collector for Linux/server use.
-
-It:
-- connects to the public ISS Lightstreamer feed
-- subscribes to 8 selected telemetry items
-- writes hourly rotating raw JSONL files
-- writes a `manifest.json` describing the run
-
-### `collect_1h_experiment.py`
-Earlier 1-hour experiment script kept for reference.
-
-### `summarize_folder.py`
-Reads saved hourly JSONL files and prints simple per-item counts.
-
-### `export_to_parquet.py`
-Converts one or more raw JSONL files into a Parquet file for offline analysis.
-
-### `analyze_telemetry.ipynb`
-Notebook for inspecting saved telemetry files.
-
----
-
-## Raw Storage
-
-Raw files are stored hourly using this format:
+Default frontend URL:
 
 ```text
-data/raw/YYYY-MM-DD/telemetry_YYYY-MM-DD_HH.jsonl
+http://localhost:5173
+```
+
+Default backend URL expected by the frontend:
+
+```text
+http://localhost:8000
+```
+
+## Docker Compose
+
+Infrastructure only:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d
+```
+
+Full backend stack in containers:
+
+```bash
+docker compose -f infra/docker-compose.yml --profile app up -d --build
+```
+
+Container services:
+
+- `postgres`
+- `redis`
+- `kafka`
+- `api`
+- `worker`
+- `ingest`
+
+Important container notes:
+
+- The backend image is built from [Dockerfile.backend](/Users/moritzknodler/Documents/00_Lectures/0_Spring%202026/Datacenters/Project/Code/Dockerfile.backend).
+- App containers mount [data](/Users/moritzknodler/Documents/00_Lectures/0_Spring%202026/Datacenters/Project/Code/data) at `/app/data`.
+- Kafka uses `localhost:9092` for host access and `kafka:19092` for container-to-container access.
+- Set `CORS_ALLOW_ORIGINS` in `.env` to include your future Vercel frontend domain.
+
+## Important Notes
+
+- JSONL remains the raw source of truth.
+- Parquet export is offline only.
+- The raw collector is separate from the Kafka/Redis/Postgres/API path.
+- Your existing hourly JSONL collection for neural-net work can remain separate from the app pipeline.
+- The frontend currently supports live polling and session-local scrollback only.
+- Historical telemetry browsing is not implemented yet.
+- For longer-running server use, prefer `tmux`, `systemd`, or later K8s pods.

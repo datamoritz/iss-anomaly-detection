@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class TelemetryPoint(BaseModel):
     item: str
     value: float | None
@@ -16,10 +17,14 @@ class AnomalyEvent(BaseModel):
     threshold_value: float | None
     details: dict
     source: str
+    trigger_source: str | None = None
+    is_simulated: bool = False
+
 
 class SimulateAnomalyRequest(BaseModel):
     item: str
     mode: str
+
 
 class ItemMetadata(BaseModel):
     item: str

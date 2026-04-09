@@ -1,0 +1,363 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg:      #080b10;
+  --surface: #0f1318;
+  --border:  #1a2030;
+  --accent:  #22d3ee;
+  --text:    #e2e8f0;
+  --muted:   #4a5568;
+  --error:   #ef4444;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+/* ── Layout ─────────────────────────────────────────────── */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.header-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.header-category {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 28px;
+  gap: 20px;
+  min-height: 0;
+}
+
+/* ── Controls ────────────────────────────────────────────── */
+
+.controls-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  flex-shrink: 0;
+}
+
+.selector-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.selector-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.selector {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  min-width: 280px;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234a5568' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+.selector:focus {
+  border-color: var(--accent);
+}
+
+.item-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 2px;
+}
+
+.meta-label {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.meta-desc {
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 440px;
+}
+
+/* ── Error ───────────────────────────────────────────────── */
+
+.error-banner {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 6px;
+  padding: 8px 14px;
+  color: var(--error);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* ── Chart ───────────────────────────────────────────────── */
+
+.chart-container {
+  height: 280px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 8px 12px 0;
+}
+
+.chart-empty {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+/* ── Latest value bar ────────────────────────────────────── */
+
+.latest-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.latest-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.latest-number {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+.latest-unit {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.latest-time {
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+/* ── Bottom row ──────────────────────────────────────────── */
+
+.bottom-row {
+  display: flex;
+  gap: 24px;
+  flex-shrink: 0;
+}
+
+.log-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sim-section {
+  flex-shrink: 0;
+}
+
+.section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+/* ── Anomaly log ─────────────────────────────────────────── */
+
+.log-wrapper {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 220px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.log-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  padding: 7px 12px;
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.log-table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.log-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.log-table tbody tr:hover td {
+  background: var(--border);
+}
+
+.log-time {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.log-kind--real {
+  color: #ef4444;
+  text-transform: capitalize;
+}
+
+.log-kind--injected {
+  color: #f59e0b;
+  text-transform: capitalize;
+}
+
+.log-empty {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 10px 0;
+}
+
+/* ── Simulation panel ────────────────────────────────────── */
+
+.sim-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sim-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.sim-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sim-select {
+  min-width: 200px;
+}
+
+.sim-btn {
+  background: transparent;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  border-radius: 6px;
+  padding: 7px 16px;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sim-btn:hover:not(:disabled) {
+  background: #ef4444;
+  color: var(--bg);
+}
+
+.sim-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.sim-status {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.sim-status--ok  { color: #22d3ee; }
+.sim-status--err { color: #ef4444; }
+
+/* ── Tooltip ─────────────────────────────────────────────── */
+
+.tooltip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.tooltip-time {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.tooltip-value {
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+}

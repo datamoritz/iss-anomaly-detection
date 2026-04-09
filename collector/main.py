@@ -6,6 +6,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from config.settings import settings
 from lightstreamer.client import (
     ClientListener,
     LightstreamerClient,
@@ -41,6 +42,8 @@ TELEMETRY_FIELDS = ["Value", "TimeStamp"]
 STOP_EVENT = threading.Event()
 STATS_LOCK = threading.Lock()
 START_MONOTONIC = time.monotonic()
+RAW_OUTPUT_ROOT = Path(settings.COLLECTOR_RAW_ROOT)
+MANIFEST_PATH = Path(settings.COLLECTOR_MANIFEST_PATH)
 
 
 def utc_now_iso():
@@ -58,7 +61,7 @@ def parse_numeric_value(value_raw):
 
 def path_for_hour(received_at):
     """Build the output path from the event receive time."""
-    day_folder = Path("data/raw") / received_at.strftime("%Y-%m-%d")
+    day_folder = RAW_OUTPUT_ROOT / received_at.strftime("%Y-%m-%d")
     day_folder.mkdir(parents=True, exist_ok=True)
     filename = f"telemetry_{received_at.strftime('%Y-%m-%d_%H')}.jsonl"
     return day_folder / filename
@@ -66,22 +69,21 @@ def path_for_hour(received_at):
 
 def write_manifest():
     """Write a tiny manifest that documents this collection setup."""
-    manifest_path = Path("data/manifest.json")
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     manifest = {
         "started_at_utc": utc_now_iso(),
         "selected_items": TELEMETRY_ITEMS,
         "schema_fields": SCHEMA_FIELDS,
-        "output_root": "data/raw",
+        "output_root": settings.COLLECTOR_RAW_ROOT,
         "version": "1.0",
     }
 
-    with manifest_path.open("w", encoding="utf-8") as manifest_file:
+    with MANIFEST_PATH.open("w", encoding="utf-8") as manifest_file:
         json.dump(manifest, manifest_file, indent=2)
         manifest_file.write("\n")
 
-    print(f"[manifest] wrote {manifest_path.resolve()}")
+    print(f"[manifest] wrote {MANIFEST_PATH.resolve()}")
 
 
 def make_empty_stats():
@@ -247,7 +249,7 @@ def main():
     signal.signal(signal.SIGTERM, handle_shutdown)
 
     print("[client] connecting to the ISS public Lightstreamer feed...")
-    print("[client] writing hourly files under data/raw/YYYY-MM-DD/")
+    print(f"[client] writing hourly files under {settings.COLLECTOR_RAW_ROOT}/YYYY-MM-DD/")
     print(f"[client] counts interval: {args.counts_interval} seconds")
     write_manifest()
 

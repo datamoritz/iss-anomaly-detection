@@ -3,7 +3,8 @@ from typing import List
 from fastapi import APIRouter, HTTPException
 
 from config.items import ITEM_METADATA
-from app.schemas import ItemMetadata
+
+from ..schemas import ItemMetadata
 
 router = APIRouter(tags=["items"])
 

@@ -1,18 +1,18 @@
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 from time import time
 
-import redis
 from kafka import KafkaProducer
 
-from app.schemas import SimulateAnomalyRequest
+from config.runtime import create_redis_client
 
-import json
-from pathlib import Path
+from ..config import settings
+from ..schemas import SimulateAnomalyRequest
 
 
 # Load rules from config file
-RULES_PATH = Path(__file__).resolve().parents[3] / "config" / "rules.json"
+RULES_PATH = Path(settings.RULES_FILE_PATH)
 
 with open(RULES_PATH, "r") as f:
     rules = json.load(f)
@@ -22,25 +22,14 @@ JUMP_RULES = rules["jump_rules"]
 
 
 
-KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
-TELEMETRY_TOPIC = "telemetry.raw"
-
-REDIS_HOST = "localhost"
-REDIS_PORT = 6379
-
-
-
-
+KAFKA_BOOTSTRAP_SERVERS = settings.KAFKA_BOOTSTRAP_SERVERS
+TELEMETRY_TOPIC = settings.KAFKA_TELEMETRY_TOPIC
 def now_utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
 def now_unix_ms() -> int:
     return int(time() * 1000)
-
-
-def get_redis_client():
-    return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 
 def get_kafka_producer() -> KafkaProducer:
@@ -54,8 +43,8 @@ def get_kafka_producer() -> KafkaProducer:
 
 
 def get_latest_value_for_item(item: str):
-    r = get_redis_client()
-    raw = r.get(f"latest:{item}")
+    r = create_redis_client()
+    raw = r.hget("latest_state", item)
     if raw is None:
         return None
 

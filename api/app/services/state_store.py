@@ -1,35 +1,7 @@
-
-
 import json
-import redis
+from config.runtime import create_postgres_connection, create_redis_client
 
-import psycopg2
-
-from app.schemas import TelemetryPoint, AnomalyEvent
-
-
-REDIS_HOST = "localhost"
-REDIS_PORT = 6379
-
-POSTGRES_HOST = "localhost"
-POSTGRES_PORT = 5432
-POSTGRES_DB = "iss_telemetry"
-POSTGRES_USER = "iss_user"
-POSTGRES_PASSWORD = "iss_password"
-
-
-def get_redis_client():
-    return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-
-
-def get_postgres_connection():
-    return psycopg2.connect(
-        host=POSTGRES_HOST,
-        port=POSTGRES_PORT,
-        dbname=POSTGRES_DB,
-        user=POSTGRES_USER,
-        password=POSTGRES_PASSWORD,
-    )
+from ..schemas import TelemetryPoint, AnomalyEvent
 
 
 def _redis_event_to_telemetry_point(raw_json: str) -> TelemetryPoint:
@@ -43,22 +15,19 @@ def _redis_event_to_telemetry_point(raw_json: str) -> TelemetryPoint:
 
 
 def get_latest_telemetry():
-    r = get_redis_client()
-    keys = sorted(r.keys("latest:*"))
+    r = create_redis_client()
+    raw_map = r.hgetall("latest_state")
     points = []
 
-    for key in keys:
-        raw = r.get(key)
-        if raw is None:
-            continue
+    for _, raw in sorted(raw_map.items()):
         points.append(_redis_event_to_telemetry_point(raw))
 
     return points
 
 
 def get_latest_telemetry_by_item(item_id: str):
-    r = get_redis_client()
-    raw = r.get(f"latest:{item_id}")
+    r = create_redis_client()
+    raw = r.hget("latest_state", item_id)
     if raw is None:
         return None
     return _redis_event_to_telemetry_point(raw)
@@ -74,17 +43,20 @@ def _row_to_anomaly_event(row) -> AnomalyEvent:
         threshold_value=row[5],
         details=json.loads(row[6]) if row[6] else {},
         source=row[7],
+        trigger_source=row[8],
+        is_simulated=bool(row[9]),
     )
 
 
 def get_recent_anomalies(limit: int = 50):
-    conn = get_postgres_connection()
+    conn = create_postgres_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 SELECT detected_at_utc, item, anomaly_type, value_numeric,
-                       previous_value_numeric, threshold_value, details_json, source
+                       previous_value_numeric, threshold_value, details_json, source,
+                       trigger_source, is_simulated
                 FROM anomalies
                 ORDER BY id DESC
                 LIMIT %s
@@ -98,13 +70,14 @@ def get_recent_anomalies(limit: int = 50):
 
 
 def get_recent_anomalies_by_item(item_id: str, limit: int = 50):
-    conn = get_postgres_connection()
+    conn = create_postgres_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 SELECT detected_at_utc, item, anomaly_type, value_numeric,
-                       previous_value_numeric, threshold_value, details_json, source
+                       previous_value_numeric, threshold_value, details_json, source,
+                       trigger_source, is_simulated
                 FROM anomalies
                 WHERE item = %s
                 ORDER BY id DESC

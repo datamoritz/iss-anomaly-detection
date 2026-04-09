@@ -2,8 +2,8 @@ from typing import List
 
 from fastapi import APIRouter, Query
 
-from app.schemas import AnomalyEvent
-from app.services.state_store import get_recent_anomalies, get_recent_anomalies_by_item
+from ..schemas import AnomalyEvent
+from ..services.state_store import get_recent_anomalies, get_recent_anomalies_by_item
 
 router = APIRouter(tags=["anomalies"])
 
@@ -17,7 +17,6 @@ def anomalies_recent(limit: int = Query(50, ge=1, le=1000)):
 def anomalies_recent_by_item(item_id: str, limit: int = Query(50, ge=1, le=1000)):
     events = get_recent_anomalies_by_item(item_id)
     return events[:limit]
-
 
 
 

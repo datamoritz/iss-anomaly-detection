@@ -2,8 +2,8 @@ from typing import List
 
 from fastapi import APIRouter, HTTPException
 
-from app.schemas import TelemetryPoint
-from app.services.state_store import get_latest_telemetry, get_latest_telemetry_by_item
+from ..schemas import TelemetryPoint
+from ..services.state_store import get_latest_telemetry, get_latest_telemetry_by_item
 
 router = APIRouter(tags=["telemetry"])
 

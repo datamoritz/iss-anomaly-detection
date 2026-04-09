@@ -1,0 +1,80 @@
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    APP_NAME: str = "ISS Telemetry API"
+    APP_ENV: str = "dev"
+    LOG_LEVEL: str = "INFO"
+
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8000
+
+    LIGHTSTREAMER_SERVER: str = "https://push.lightstreamer.com"
+    LIGHTSTREAMER_ADAPTER_SET: str = "ISSLIVE"
+
+    KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
+    KAFKA_TELEMETRY_TOPIC: str = "telemetry.raw"
+    KAFKA_ANOMALY_TOPIC: str = "anomaly.events"
+    KAFKA_CONSUMER_GROUP: str = "iss-worker"
+
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_PASSWORD: str | None = None
+
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_DB: str = "iss_telemetry"
+    POSTGRES_USER: str = "iss_user"
+    POSTGRES_PASSWORD: str = "iss_password"
+
+    DATABASE_URL: str | None = None
+
+    CORS_ALLOW_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
+    RULES_FILE_PATH: str = "config/rules.json"
+    DATA_ROOT: str = "data"
+    COLLECTOR_RAW_ROOT: str = "data/raw"
+    COLLECTOR_MANIFEST_PATH: str = "data/manifest.json"
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [
+            origin.strip()
+            for origin in self.CORS_ALLOW_ORIGINS.split(",")
+            if origin.strip()
+        ]
+
+    @property
+    def redis_url(self) -> str:
+        if self.REDIS_PASSWORD:
+            return (
+                f"redis://:{self.REDIS_PASSWORD}@"
+                f"{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+            )
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+    @property
+    def postgres_url(self) -> str:
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+        return (
+            f"postgresql+psycopg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()

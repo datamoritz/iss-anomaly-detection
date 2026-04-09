@@ -1,19 +1,20 @@
 import json
 import signal
-import sys
 import time
 from datetime import datetime, timezone
 from typing import Optional
+
+from config.settings import settings
 
 from kafka import KafkaProducer
 from lightstreamer.client import LightstreamerClient, Subscription
 from lightstreamer.client.ls_python_client_api import ItemUpdate
 
 
-LIGHTSTREAMER_SERVER = "https://push.lightstreamer.com"
-LIGHTSTREAMER_ADAPTER_SET = "ISSLIVE"
-KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
-KAFKA_TOPIC = "telemetry.raw"
+LIGHTSTREAMER_SERVER = settings.LIGHTSTREAMER_SERVER
+LIGHTSTREAMER_ADAPTER_SET = settings.LIGHTSTREAMER_ADAPTER_SET
+KAFKA_BOOTSTRAP_SERVERS = settings.KAFKA_BOOTSTRAP_SERVERS
+KAFKA_TOPIC = settings.KAFKA_TELEMETRY_TOPIC
 
 SELECTED_ITEMS = [
     "S0000004",      # Port SARJ angle position
