@@ -26,8 +26,8 @@ export default function SubscriptionPanel({ items, selectedItem, onSubscribe, st
   }
 
   return (
-    <div className="subscription-panel">
-      <span className="sim-title">Email Alerts</span>
+    <div className="panel-card">
+      <span className="panel-card-title">Email Alerts</span>
       <form className="subscription-form" onSubmit={handleSubmit}>
         <input
           className="subscription-input"
@@ -38,7 +38,7 @@ export default function SubscriptionPanel({ items, selectedItem, onSubscribe, st
           required
         />
         <select
-          className="selector sim-select"
+          className="selector selector--full"
           value={itemId}
           onChange={(e) => setItemId(e.target.value)}
         >
@@ -50,7 +50,7 @@ export default function SubscriptionPanel({ items, selectedItem, onSubscribe, st
           ))}
         </select>
         <select
-          className="selector sim-select"
+          className="selector selector--full"
           value={anomalyType}
           onChange={(e) => setAnomalyType(e.target.value)}
         >
@@ -60,7 +60,7 @@ export default function SubscriptionPanel({ items, selectedItem, onSubscribe, st
             </option>
           ))}
         </select>
-        <button type="submit" className="sim-btn">
+        <button type="submit" className="sim-btn sim-btn--full">
           Subscribe
         </button>
       </form>

@@ -107,8 +107,49 @@ body {
   border-color: var(--accent);
 }
 
-.selector--compact {
-  min-width: 180px;
+.selector--full {
+  min-width: unset;
+  width: 100%;
+}
+
+/* ── Range pills ─────────────────────────────────────────── */
+
+.range-pills-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.range-pills {
+  display: flex;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px;
+}
+
+.range-pill {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  padding: 5px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.range-pill:hover {
+  color: var(--text);
+  background: var(--border);
+}
+
+.range-pill--active {
+  background: var(--border);
+  color: var(--accent);
 }
 
 .item-meta {
@@ -144,12 +185,39 @@ body {
 /* ── Chart ───────────────────────────────────────────────── */
 
 .chart-container {
-  height: 280px;
+  height: 320px;
   flex-shrink: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 16px 8px 12px 0;
+}
+
+.chart-inner {
+  height: 100%;
+  position: relative;
+}
+
+.chart-reset-y {
+  position: absolute;
+  top: 4px;
+  right: 32px;
+  z-index: 10;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.chart-reset-y:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .chart-empty {
@@ -212,10 +280,6 @@ body {
   min-width: 0;
 }
 
-.sim-section {
-  flex-shrink: 0;
-}
-
 .side-panels {
   width: 320px;
   display: flex;
@@ -231,15 +295,7 @@ body {
   color: var(--muted);
 }
 
-.subscription-panel,
-.sim-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.subscription-form,
-.sim-form {
+.subscription-form {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -326,29 +382,59 @@ body {
   padding: 10px 0;
 }
 
-/* ── Simulation panel ────────────────────────────────────── */
+/* ── Panel cards ─────────────────────────────────────────── */
 
-.sim-panel {
+.panel-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
-.sim-title {
+.panel-card-title {
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   color: var(--muted);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
 }
 
-.sim-form {
+/* ── Simulation panel ────────────────────────────────────── */
+
+.sim-mode-pills {
   display: flex;
-  gap: 8px;
-  align-items: center;
+  gap: 4px;
 }
 
-.sim-select {
-  min-width: 200px;
+.sim-mode-pill {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 5px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  white-space: nowrap;
+}
+
+.sim-mode-pill:hover {
+  color: var(--text);
+  border-color: #4a5568;
+}
+
+.sim-mode-pill--active {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.06);
 }
 
 .sim-btn {
@@ -362,6 +448,10 @@ body {
   letter-spacing: 0.06em;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
+}
+
+.sim-btn--full {
+  width: 100%;
 }
 
 .sim-btn:hover:not(:disabled) {

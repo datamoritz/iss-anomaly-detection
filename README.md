@@ -220,13 +220,13 @@ http://localhost:8000
 Infrastructure only:
 
 ```bash
-docker compose -f infra/docker-compose.yml up -d
+docker compose --env-file .env -f infra/docker-compose.yml up -d
 ```
 
 Full backend stack in containers:
 
 ```bash
-docker compose -f infra/docker-compose.yml --profile app up -d --build
+docker compose --env-file .env -f infra/docker-compose.yml --profile app up -d --build
 ```
 
 Container services:

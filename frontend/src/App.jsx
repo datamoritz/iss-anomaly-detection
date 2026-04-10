@@ -18,10 +18,10 @@ const MAX_POINTS = 120  // ~4 minutes at 2s polling
 const POLL_INTERVAL_MS = 2000
 const SIMULATION_VISIBLE_MS = 1500
 const RANGE_OPTIONS = [
-  { value: 'recent', label: 'Recent (Redis)' },
-  { value: '1h', label: '1 Hour' },
-  { value: '6h', label: '6 Hours' },
-  { value: '24h', label: '24 Hours' },
+  { value: 'recent', label: 'Live' },
+  { value: '1h', label: '1H' },
+  { value: '6h', label: '6H' },
+  { value: '24h', label: '24H' },
 ]
 
 function toChartPoint(point) {
@@ -213,22 +213,19 @@ export default function App() {
             selectedItem={selectedItem}
             onChange={setSelectedItem}
           />
-          <div className="selector-wrapper">
-            <label className="selector-label" htmlFor="range-select">
-              Time Range
-            </label>
-            <select
-              id="range-select"
-              className="selector selector--compact"
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-            >
+          <div className="range-pills-wrapper">
+            <span className="selector-label">Time Range</span>
+            <div className="range-pills">
               {RANGE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
+                <button
+                  key={option.value}
+                  className={`range-pill ${timeRange === option.value ? 'range-pill--active' : ''}`}
+                  onClick={() => setTimeRange(option.value)}
+                >
                   {option.label}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
           {selectedMeta && (
             <div className="item-meta">
@@ -243,7 +240,13 @@ export default function App() {
         )}
 
         <div className="chart-container">
-          <TelemetryChart buffer={buffer} unit={selectedMeta?.unit ?? ''} anomalies={anomalies} hasError={!!error} />
+          <TelemetryChart
+            buffer={buffer}
+            unit={selectedMeta?.unit ?? ''}
+            anomalies={anomalies}
+            hasError={!!error}
+            showBrush={timeRange !== 'recent'}
+          />
         </div>
 
         {latestPoint && (
@@ -265,21 +268,17 @@ export default function App() {
             <AnomalyLog anomalies={anomalies} />
           </div>
           <div className="side-panels">
-            <div className="sim-section">
-              <SimulationPanel
-                selectedItem={selectedItem}
-                onSimulate={handleSimulate}
-                status={simStatus}
-              />
-            </div>
-            <div className="sim-section">
-              <SubscriptionPanel
-                items={items}
-                selectedItem={selectedItem}
-                onSubscribe={handleSubscribe}
-                status={subscriptionStatus}
-              />
-            </div>
+            <SimulationPanel
+              selectedItem={selectedItem}
+              onSimulate={handleSimulate}
+              status={simStatus}
+            />
+            <SubscriptionPanel
+              items={items}
+              selectedItem={selectedItem}
+              onSubscribe={handleSubscribe}
+              status={subscriptionStatus}
+            />
           </div>
         </div>
       </main>
