@@ -35,6 +35,10 @@ pipeline/worker.py
    ├─ PostgreSQL (telemetry history + anomaly history)
    └─ Kafka (anomaly.events)
         ↓
+notifications/service.py
+        ↓
+     Email alerts
+        ↓
 FastAPI backend
         ↓
 Frontend
@@ -106,9 +110,17 @@ Current endpoints:
 - `GET /api/v1/items/{item_id}`
 - `GET /api/v1/telemetry/latest`
 - `GET /api/v1/telemetry/latest/{item_id}`
+- `GET /api/v1/telemetry/recent/{item_id}`
+- `GET /api/v1/telemetry/history/{item_id}`
 - `GET /api/v1/anomalies/recent`
 - `GET /api/v1/anomalies/recent/{item_id}`
 - `POST /api/v1/simulate-anomaly`
+- `POST /api/v1/subscriptions`
+- `POST /api/v1/subscriptions/verify`
+- `GET /api/v1/subscriptions/verify`
+- `POST /api/v1/subscriptions/unsubscribe`
+- `GET /api/v1/subscriptions/unsubscribe`
+- `DELETE /api/v1/subscriptions/{subscription_id}`
 
 Notes:
 
@@ -117,6 +129,8 @@ Notes:
 - Latest telemetry is read from Redis hash `latest_state`.
 - Redis also stores bounded recent history lists under `recent_history:<item_id>`.
 - Postgres stores durable telemetry history for this app in `telemetry_history`.
+- Postgres also stores email subscriptions and notification logs.
+- Verification emails are sent by the API; anomaly alert emails are sent by the separate notification consumer.
 - `/health` now checks Redis, Postgres, and Kafka.
 - `/health/live` is a simple liveness route.
 - Postgres schema setup is deterministic and runs from shared code on API startup and worker startup.
@@ -175,6 +189,12 @@ API:
 uvicorn api.app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+Notification consumer:
+
+```bash
+python -m notifications.service
+```
+
 Frontend:
 
 ```bash
@@ -217,6 +237,7 @@ Container services:
 - `api`
 - `worker`
 - `ingest`
+- `notifications`
 
 Important container notes:
 
@@ -226,6 +247,12 @@ Important container notes:
 - Set `CORS_ALLOW_ORIGINS` in `.env` to include your future Vercel frontend domain.
 - `REDIS_RECENT_HISTORY_LIMIT` defaults to `100`.
 - `TELEMETRY_RETENTION_DAYS` defaults to `28`.
+- `DEFAULT_NOTIFICATION_COOLDOWN_MINUTES` defaults to `10`.
+- Email alert env vars:
+  - `EMAIL_PROVIDER`
+  - `RESEND_API_KEY`
+  - `EMAIL_FROM`
+  - `APP_BASE_URL`
 
 ## Important Notes
 
@@ -233,6 +260,5 @@ Important container notes:
 - Parquet export is offline only.
 - The raw collector is separate from the Kafka/Redis/Postgres/API path.
 - Your existing hourly JSONL collection for neural-net work can remain separate from the app pipeline.
-- The frontend currently supports live polling and session-local scrollback only.
-- Historical telemetry browsing is not implemented yet.
+- The frontend now preloads recent telemetry from Redis and can request historical telemetry from Postgres.
 - For longer-running server use, prefer `tmux`, `systemd`, or later K8s pods.

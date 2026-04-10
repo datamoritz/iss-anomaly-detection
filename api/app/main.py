@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config.runtime import create_postgres_connection, ensure_postgres_schema
 
 from .config import settings
-from .routers import health, telemetry, anomalies, simulation, items
+from .routers import health, telemetry, anomalies, simulation, items, subscriptions
 
 
 @asynccontextmanager
@@ -48,3 +48,4 @@ app.include_router(items.router, prefix="/api/v1")
 app.include_router(telemetry.router, prefix="/api/v1")
 app.include_router(anomalies.router, prefix="/api/v1")
 app.include_router(simulation.router, prefix="/api/v1")
+app.include_router(subscriptions.router, prefix="/api/v1")

@@ -216,11 +216,48 @@ body {
   flex-shrink: 0;
 }
 
+.side-panels {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
 .section-label {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--muted);
+}
+
+.subscription-panel,
+.sim-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subscription-form,
+.sim-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subscription-input {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+
+.subscription-input:focus {
+  border-color: var(--accent);
 }
 
 /* ── Anomaly log ─────────────────────────────────────────── */

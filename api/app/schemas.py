@@ -26,6 +26,26 @@ class SimulateAnomalyRequest(BaseModel):
     mode: str
 
 
+class SubscriptionCreateRequest(BaseModel):
+    email: str
+    item_id: str | None = None
+    anomaly_type: str | None = None
+
+
+class SubscriptionVerifyRequest(BaseModel):
+    token: str
+
+
+class SubscriptionDeleteRequest(BaseModel):
+    token: str
+
+
+class SubscriptionResponse(BaseModel):
+    ok: bool
+    message: str
+    subscription_id: int | None = None
+
+
 class ItemMetadata(BaseModel):
     item: str
     label: str

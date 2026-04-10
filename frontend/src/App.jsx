@@ -6,11 +6,13 @@ import {
   fetchTelemetryHistory,
   fetchAnomalies,
   simulateAnomaly,
+  createSubscription,
 } from './api/client'
 import ParameterSelector from './components/ParameterSelector'
 import TelemetryChart from './components/TelemetryChart'
 import AnomalyLog from './components/AnomalyLog'
 import SimulationPanel from './components/SimulationPanel'
+import SubscriptionPanel from './components/SubscriptionPanel'
 
 const MAX_POINTS = 120  // ~4 minutes at 2s polling
 const POLL_INTERVAL_MS = 2000
@@ -48,6 +50,7 @@ export default function App() {
   const [buffer, setBuffer] = useState([])
   const [anomalies, setAnomalies] = useState([])
   const [simStatus, setSimStatus] = useState(null)
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null)
   const [error, setError] = useState(null)
   const telemetryIntervalRef = useRef(null)
   const anomalyIntervalRef = useRef(null)
@@ -181,6 +184,16 @@ export default function App() {
     }
   }
 
+  async function handleSubscribe(payload) {
+    setSubscriptionStatus(null)
+    try {
+      const response = await createSubscription(payload)
+      setSubscriptionStatus({ ok: true, message: response.message })
+    } catch (e) {
+      setSubscriptionStatus({ ok: false, message: e.message })
+    }
+  }
+
   const selectedMeta = items.find((i) => i.item === selectedItem)
   const latestPoint = buffer[buffer.length - 1]
 
@@ -251,12 +264,22 @@ export default function App() {
             <span className="section-label">Anomaly Log</span>
             <AnomalyLog anomalies={anomalies} />
           </div>
-          <div className="sim-section">
-            <SimulationPanel
-              selectedItem={selectedItem}
-              onSimulate={handleSimulate}
-              status={simStatus}
-            />
+          <div className="side-panels">
+            <div className="sim-section">
+              <SimulationPanel
+                selectedItem={selectedItem}
+                onSimulate={handleSimulate}
+                status={simStatus}
+              />
+            </div>
+            <div className="sim-section">
+              <SubscriptionPanel
+                items={items}
+                selectedItem={selectedItem}
+                onSubscribe={handleSubscribe}
+                status={subscriptionStatus}
+              />
+            </div>
           </div>
         </div>
       </main>

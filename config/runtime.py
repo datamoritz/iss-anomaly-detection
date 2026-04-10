@@ -80,6 +80,133 @@ def ensure_postgres_schema(conn) -> None:
             ON telemetry_history (received_at_utc DESC)
             """
         )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                id BIGSERIAL PRIMARY KEY,
+                email TEXT NOT NULL,
+                item_id TEXT,
+                anomaly_type TEXT,
+                enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+                verify_token TEXT,
+                unsubscribe_token TEXT NOT NULL,
+                cooldown_minutes INTEGER,
+                last_sent_at TIMESTAMPTZ,
+                verified_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE subscriptions
+            ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT TRUE
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE subscriptions
+            ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT FALSE
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE subscriptions
+            ADD COLUMN IF NOT EXISTS verify_token TEXT
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE subscriptions
+            ADD COLUMN IF NOT EXISTS unsubscribe_token TEXT
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE subscriptions
+            ADD COLUMN IF NOT EXISTS cooldown_minutes INTEGER
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE subscriptions
+            ADD COLUMN IF NOT EXISTS last_sent_at TIMESTAMPTZ
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE subscriptions
+            ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE subscriptions
+            ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            """
+        )
+        cur.execute(
+            """
+            UPDATE subscriptions
+            SET unsubscribe_token = COALESCE(unsubscribe_token, md5(random()::text || clock_timestamp()::text))
+            WHERE unsubscribe_token IS NULL
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE subscriptions
+            ALTER COLUMN unsubscribe_token SET NOT NULL
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_subscriptions_enabled_verified
+            ON subscriptions (enabled, is_verified)
+            """
+        )
+        cur.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_verify_token
+            ON subscriptions (verify_token)
+            WHERE verify_token IS NOT NULL
+            """
+        )
+        cur.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_unsubscribe_token
+            ON subscriptions (unsubscribe_token)
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS notification_log (
+                id BIGSERIAL PRIMARY KEY,
+                subscription_id BIGINT NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+                anomaly_signature TEXT NOT NULL,
+                item TEXT NOT NULL,
+                anomaly_type TEXT NOT NULL,
+                detected_at_utc TIMESTAMPTZ,
+                sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                status TEXT NOT NULL,
+                provider TEXT,
+                provider_message_id TEXT,
+                error_message TEXT
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_notification_log_subscription_signature
+            ON notification_log (subscription_id, anomaly_signature)
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_notification_log_subscription_sent_at
+            ON notification_log (subscription_id, sent_at DESC)
+            """
+        )
     conn.commit()
 
 

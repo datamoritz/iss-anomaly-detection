@@ -44,3 +44,13 @@ export async function simulateAnomaly(payload) {
   if (!res.ok) throw new Error(`Failed to simulate anomaly (${res.status})`)
   return res.json()
 }
+
+export async function createSubscription(payload) {
+  const res = await fetch(`${API_BASE}/api/v1/subscriptions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error(`Failed to create subscription (${res.status})`)
+  return res.json()
+}

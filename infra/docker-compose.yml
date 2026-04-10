@@ -80,6 +80,7 @@ services:
       KAFKA_TELEMETRY_TOPIC: ${KAFKA_TELEMETRY_TOPIC:-telemetry.raw}
       KAFKA_ANOMALY_TOPIC: ${KAFKA_ANOMALY_TOPIC:-anomaly.events}
       KAFKA_CONSUMER_GROUP: ${KAFKA_CONSUMER_GROUP:-iss-worker}
+      KAFKA_NOTIFICATION_CONSUMER_GROUP: ${KAFKA_NOTIFICATION_CONSUMER_GROUP:-iss-notifications}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DB: ${REDIS_DB:-0}
@@ -96,6 +97,11 @@ services:
       COLLECTOR_MANIFEST_PATH: /app/data/manifest.json
       REDIS_RECENT_HISTORY_LIMIT: ${REDIS_RECENT_HISTORY_LIMIT:-100}
       TELEMETRY_RETENTION_DAYS: ${TELEMETRY_RETENTION_DAYS:-28}
+      DEFAULT_NOTIFICATION_COOLDOWN_MINUTES: ${DEFAULT_NOTIFICATION_COOLDOWN_MINUTES:-10}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-resend}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-iss-alerts@example.com}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -128,6 +134,7 @@ services:
       KAFKA_TELEMETRY_TOPIC: ${KAFKA_TELEMETRY_TOPIC:-telemetry.raw}
       KAFKA_ANOMALY_TOPIC: ${KAFKA_ANOMALY_TOPIC:-anomaly.events}
       KAFKA_CONSUMER_GROUP: ${KAFKA_CONSUMER_GROUP:-iss-worker}
+      KAFKA_NOTIFICATION_CONSUMER_GROUP: ${KAFKA_NOTIFICATION_CONSUMER_GROUP:-iss-notifications}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DB: ${REDIS_DB:-0}
@@ -140,6 +147,11 @@ services:
       RULES_FILE_PATH: ${RULES_FILE_PATH:-config/rules.json}
       REDIS_RECENT_HISTORY_LIMIT: ${REDIS_RECENT_HISTORY_LIMIT:-100}
       TELEMETRY_RETENTION_DAYS: ${TELEMETRY_RETENTION_DAYS:-28}
+      DEFAULT_NOTIFICATION_COOLDOWN_MINUTES: ${DEFAULT_NOTIFICATION_COOLDOWN_MINUTES:-10}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-resend}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-iss-alerts@example.com}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -165,6 +177,35 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:19092
       KAFKA_TELEMETRY_TOPIC: ${KAFKA_TELEMETRY_TOPIC:-telemetry.raw}
     depends_on:
+      kafka:
+        condition: service_healthy
+
+  notifications:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+    container_name: iss-notifications
+    command: ["python", "-m", "notifications.service"]
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      KAFKA_ANOMALY_TOPIC: ${KAFKA_ANOMALY_TOPIC:-anomaly.events}
+      KAFKA_NOTIFICATION_CONSUMER_GROUP: ${KAFKA_NOTIFICATION_CONSUMER_GROUP:-iss-notifications}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-iss_telemetry}
+      POSTGRES_USER: ${POSTGRES_USER:-iss_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iss_password}
+      DEFAULT_NOTIFICATION_COOLDOWN_MINUTES: ${DEFAULT_NOTIFICATION_COOLDOWN_MINUTES:-10}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-resend}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-iss-alerts@example.com}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8000}
+    depends_on:
+      postgres:
+        condition: service_healthy
       kafka:
         condition: service_healthy
 

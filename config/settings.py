@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     KAFKA_TELEMETRY_TOPIC: str = "telemetry.raw"
     KAFKA_ANOMALY_TOPIC: str = "anomaly.events"
     KAFKA_CONSUMER_GROUP: str = "iss-worker"
+    KAFKA_NOTIFICATION_CONSUMER_GROUP: str = "iss-notifications"
 
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
@@ -46,6 +47,12 @@ class Settings(BaseSettings):
     COLLECTOR_MANIFEST_PATH: str = "data/manifest.json"
     REDIS_RECENT_HISTORY_LIMIT: int = 100
     TELEMETRY_RETENTION_DAYS: int = 28
+    DEFAULT_NOTIFICATION_COOLDOWN_MINUTES: int = 10
+
+    EMAIL_PROVIDER: str = "resend"
+    RESEND_API_KEY: str | None = None
+    EMAIL_FROM: str = "iss-alerts@example.com"
+    APP_BASE_URL: str = "http://localhost:8000"
 
     @property
     def cors_origins(self) -> list[str]:
