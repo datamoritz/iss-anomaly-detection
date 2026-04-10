@@ -56,7 +56,69 @@ def ensure_postgres_schema(conn) -> None:
             ADD COLUMN IF NOT EXISTS is_simulated BOOLEAN NOT NULL DEFAULT FALSE
             """
         )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS telemetry_history (
+                id BIGSERIAL PRIMARY KEY,
+                item TEXT NOT NULL,
+                received_at_utc TIMESTAMPTZ NOT NULL,
+                value_numeric DOUBLE PRECISION,
+                value_raw TEXT,
+                source TEXT NOT NULL
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_telemetry_history_item_received_at
+            ON telemetry_history (item, received_at_utc DESC)
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_telemetry_history_received_at
+            ON telemetry_history (received_at_utc DESC)
+            """
+        )
     conn.commit()
+
+
+def insert_telemetry_history(conn, event: dict) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO telemetry_history (
+                item,
+                received_at_utc,
+                value_numeric,
+                value_raw,
+                source
+            )
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (
+                event["item"],
+                event["received_at_utc"],
+                event.get("value_numeric"),
+                event.get("value_raw"),
+                event["source"],
+            ),
+        )
+    conn.commit()
+
+
+def cleanup_old_telemetry_history(conn) -> int:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            DELETE FROM telemetry_history
+            WHERE received_at_utc < (NOW() - (%s * INTERVAL '1 day'))
+            """,
+            (settings.TELEMETRY_RETENTION_DAYS,),
+        )
+        deleted_rows = cur.rowcount
+    conn.commit()
+    return deleted_rows
 
 
 def check_redis() -> tuple[bool, str]:

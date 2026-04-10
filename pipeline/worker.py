@@ -6,9 +6,11 @@ from typing import Any, Optional
 
 from config.settings import settings
 from config.runtime import (
+    cleanup_old_telemetry_history,
     create_postgres_connection,
     create_redis_client,
     ensure_postgres_schema,
+    insert_telemetry_history,
 )
 
 import redis
@@ -27,6 +29,7 @@ JUMP_RULES = rules["jump_rules"]
 KAFKA_BOOTSTRAP_SERVERS = settings.KAFKA_BOOTSTRAP_SERVERS
 TELEMETRY_TOPIC = settings.KAFKA_TELEMETRY_TOPIC
 ANOMALY_TOPIC = settings.KAFKA_ANOMALY_TOPIC
+REDIS_RECENT_HISTORY_LIMIT = settings.REDIS_RECENT_HISTORY_LIMIT
 
 running = True
 
@@ -60,6 +63,22 @@ def create_kafka_producer() -> KafkaProducer:
 def save_latest_state(r: redis.Redis, event: dict[str, Any]) -> None:
     item = event["item"]
     r.hset("latest_state", item, json.dumps(event))
+
+
+def append_recent_history(r: redis.Redis, event: dict[str, Any]) -> None:
+    item = event["item"]
+    history_key = f"recent_history:{item}"
+    history_entry = {
+        "item": item,
+        "value": event.get("value_numeric"),
+        "value_raw": event.get("value_raw"),
+        "timestamp_utc": event["received_at_utc"],
+        "source": event["source"],
+    }
+    pipe = r.pipeline()
+    pipe.lpush(history_key, json.dumps(history_entry))
+    pipe.ltrim(history_key, 0, REDIS_RECENT_HISTORY_LIMIT - 1)
+    pipe.execute()
 
 
 def should_update_latest_state(event: dict[str, Any]) -> bool:
@@ -199,6 +218,20 @@ def handle_shutdown(signum, frame):
     running = False
 
 
+def maybe_run_daily_retention_cleanup(conn, last_cleanup_day):
+    today_utc = datetime.now(timezone.utc).date()
+    if last_cleanup_day == today_utc:
+        return last_cleanup_day
+
+    deleted_rows = cleanup_old_telemetry_history(conn)
+    print(
+        "[retention] "
+        f"removed {deleted_rows} telemetry rows older than "
+        f"{settings.TELEMETRY_RETENTION_DAYS} days"
+    )
+    return today_utc
+
+
 def main() -> None:
     signal.signal(signal.SIGINT, handle_shutdown)
     signal.signal(signal.SIGTERM, handle_shutdown)
@@ -222,6 +255,7 @@ def main() -> None:
     previous_values: dict[str, Optional[float]] = {}
     processed_count = 0
     anomaly_count = 0
+    last_cleanup_day = None
 
     print("[startup] worker is running")
     print(f"[startup] consuming topic={TELEMETRY_TOPIC}")
@@ -236,6 +270,9 @@ def main() -> None:
                     item = event["item"]
                     value_numeric = event.get("value_numeric")
                     trigger_source = event.get("source")
+
+                    insert_telemetry_history(pg_conn, event)
+                    append_recent_history(redis_client, event)
 
                     if should_update_latest_state(event):
                         save_latest_state(redis_client, event)
@@ -266,6 +303,10 @@ def main() -> None:
 
                     previous_values[item] = value_numeric
                     processed_count += 1
+                    last_cleanup_day = maybe_run_daily_retention_cleanup(
+                        pg_conn,
+                        last_cleanup_day,
+                    )
 
                     if processed_count % 100 == 0:
                         print(

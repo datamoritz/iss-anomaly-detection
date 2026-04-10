@@ -14,6 +14,25 @@ def _redis_event_to_telemetry_point(raw_json: str) -> TelemetryPoint:
     )
 
 
+def _redis_recent_history_to_telemetry_point(raw_json: str) -> TelemetryPoint:
+    event = json.loads(raw_json)
+    return TelemetryPoint(
+        item=event["item"],
+        value=event.get("value"),
+        timestamp_utc=event["timestamp_utc"],
+        source=event["source"],
+    )
+
+
+def _row_to_telemetry_point(row) -> TelemetryPoint:
+    return TelemetryPoint(
+        item=row[0],
+        value=row[1],
+        timestamp_utc=row[2].isoformat(),
+        source=row[3],
+    )
+
+
 def get_latest_telemetry():
     r = create_redis_client()
     raw_map = r.hgetall("latest_state")
@@ -31,6 +50,35 @@ def get_latest_telemetry_by_item(item_id: str):
     if raw is None:
         return None
     return _redis_event_to_telemetry_point(raw)
+
+
+def get_recent_telemetry_by_item(item_id: str, limit: int = 100):
+    r = create_redis_client()
+    raw_entries = r.lrange(f"recent_history:{item_id}", 0, limit - 1)
+    points = [_redis_recent_history_to_telemetry_point(raw) for raw in raw_entries]
+    return list(reversed(points))
+
+
+def get_telemetry_history_by_item(item_id: str, from_utc, to_utc, limit: int = 1000):
+    conn = create_postgres_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT item, value_numeric, received_at_utc, source
+                FROM telemetry_history
+                WHERE item = %s
+                  AND received_at_utc >= %s
+                  AND received_at_utc <= %s
+                ORDER BY received_at_utc ASC
+                LIMIT %s
+                """,
+                (item_id, from_utc, to_utc, limit),
+            )
+            rows = cur.fetchall()
+        return [_row_to_telemetry_point(row) for row in rows]
+    finally:
+        conn.close()
 
 
 def _row_to_anomaly_event(row) -> AnomalyEvent:

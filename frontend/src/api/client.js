@@ -12,6 +12,23 @@ export async function fetchLatest(itemId) {
   return res.json()
 }
 
+export async function fetchRecentTelemetry(itemId, limit = 100) {
+  const res = await fetch(`${API_BASE}/api/v1/telemetry/recent/${itemId}?limit=${limit}`)
+  if (!res.ok) throw new Error(`Failed to fetch recent telemetry (${res.status})`)
+  return res.json()
+}
+
+export async function fetchTelemetryHistory(itemId, { from, to, limit = 1000 }) {
+  const params = new URLSearchParams({
+    from,
+    to,
+    limit: String(limit),
+  })
+  const res = await fetch(`${API_BASE}/api/v1/telemetry/history/${itemId}?${params.toString()}`)
+  if (!res.ok) throw new Error(`Failed to fetch telemetry history (${res.status})`)
+  return res.json()
+}
+
 export async function fetchAnomalies(itemId) {
   const res = await fetch(`${API_BASE}/api/v1/anomalies/recent/${itemId}?limit=50`)
   if (!res.ok) throw new Error(`Failed to fetch anomalies (${res.status})`)

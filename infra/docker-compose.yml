@@ -94,6 +94,8 @@ services:
       DATA_ROOT: /app/data
       COLLECTOR_RAW_ROOT: /app/data/raw
       COLLECTOR_MANIFEST_PATH: /app/data/manifest.json
+      REDIS_RECENT_HISTORY_LIMIT: ${REDIS_RECENT_HISTORY_LIMIT:-100}
+      TELEMETRY_RETENTION_DAYS: ${TELEMETRY_RETENTION_DAYS:-28}
     depends_on:
       postgres:
         condition: service_healthy
@@ -136,6 +138,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-iss_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iss_password}
       RULES_FILE_PATH: ${RULES_FILE_PATH:-config/rules.json}
+      REDIS_RECENT_HISTORY_LIMIT: ${REDIS_RECENT_HISTORY_LIMIT:-100}
+      TELEMETRY_RETENTION_DAYS: ${TELEMETRY_RETENTION_DAYS:-28}
     depends_on:
       postgres:
         condition: service_healthy

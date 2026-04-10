@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { fetchItems, fetchLatest, fetchAnomalies, simulateAnomaly } from './api/client'
+import {
+  fetchItems,
+  fetchLatest,
+  fetchRecentTelemetry,
+  fetchTelemetryHistory,
+  fetchAnomalies,
+  simulateAnomaly,
+} from './api/client'
 import ParameterSelector from './components/ParameterSelector'
 import TelemetryChart from './components/TelemetryChart'
 import AnomalyLog from './components/AnomalyLog'
@@ -8,10 +15,36 @@ import SimulationPanel from './components/SimulationPanel'
 const MAX_POINTS = 120  // ~4 minutes at 2s polling
 const POLL_INTERVAL_MS = 2000
 const SIMULATION_VISIBLE_MS = 1500
+const RANGE_OPTIONS = [
+  { value: 'recent', label: 'Recent (Redis)' },
+  { value: '1h', label: '1 Hour' },
+  { value: '6h', label: '6 Hours' },
+  { value: '24h', label: '24 Hours' },
+]
+
+function toChartPoint(point) {
+  return {
+    t: new Date(point.timestamp_utc).getTime(),
+    value: point.value,
+    timestamp_utc: point.timestamp_utc,
+    source: point.source,
+  }
+}
+
+function historyWindow(range) {
+  const now = new Date()
+  const hours = range === '1h' ? 1 : range === '6h' ? 6 : 24
+  const from = new Date(now.getTime() - hours * 60 * 60 * 1000)
+  return {
+    from: from.toISOString(),
+    to: now.toISOString(),
+  }
+}
 
 export default function App() {
   const [items, setItems] = useState([])
   const [selectedItem, setSelectedItem] = useState(null)
+  const [timeRange, setTimeRange] = useState('recent')
   const [buffer, setBuffer] = useState([])
   const [anomalies, setAnomalies] = useState([])
   const [simStatus, setSimStatus] = useState(null)
@@ -34,7 +67,7 @@ export default function App() {
     return () => clearTimeout(simulationResetRef.current)
   }, [])
 
-  // Telemetry polling — 2s
+  // Load recent/history data, then keep live polling only for the recent view.
   useEffect(() => {
     if (!selectedItem) return
 
@@ -42,11 +75,37 @@ export default function App() {
     clearTimeout(simulationResetRef.current)
     clearInterval(telemetryIntervalRef.current)
 
+    const loadInitialBuffer = async () => {
+      try {
+        if (timeRange === 'recent') {
+          const points = await fetchRecentTelemetry(selectedItem, MAX_POINTS)
+          setBuffer(points.map(toChartPoint))
+          setError(null)
+          return
+        }
+
+        const window = historyWindow(timeRange)
+        const points = await fetchTelemetryHistory(selectedItem, {
+          from: window.from,
+          to: window.to,
+          limit: 1000,
+        })
+        setBuffer(points.map(toChartPoint))
+        setError(null)
+      } catch (e) {
+        setError(e.message)
+      }
+    }
+
     const poll = async () => {
       try {
         const point = await fetchLatest(selectedItem)
         setBuffer((prev) => {
-          const next = [...prev, { t: Date.now(), value: point.value }]
+          if (prev[prev.length - 1]?.timestamp_utc === point.timestamp_utc) {
+            return prev
+          }
+
+          const next = [...prev, toChartPoint(point)]
           return next.slice(-MAX_POINTS)
         })
         setError(null)
@@ -55,11 +114,15 @@ export default function App() {
       }
     }
 
-    poll()
-    telemetryIntervalRef.current = setInterval(poll, POLL_INTERVAL_MS)
+    loadInitialBuffer()
+
+    if (timeRange === 'recent') {
+      poll()
+      telemetryIntervalRef.current = setInterval(poll, POLL_INTERVAL_MS)
+    }
 
     return () => clearInterval(telemetryIntervalRef.current)
-  }, [selectedItem])
+  }, [selectedItem, timeRange])
 
   // Anomaly polling — 5s
   useEffect(() => {
@@ -137,6 +200,23 @@ export default function App() {
             selectedItem={selectedItem}
             onChange={setSelectedItem}
           />
+          <div className="selector-wrapper">
+            <label className="selector-label" htmlFor="range-select">
+              Time Range
+            </label>
+            <select
+              id="range-select"
+              className="selector selector--compact"
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value)}
+            >
+              {RANGE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
           {selectedMeta && (
             <div className="item-meta">
               <span className="meta-label">{selectedMeta.label}</span>

@@ -107,6 +107,10 @@ body {
   border-color: var(--accent);
 }
 
+.selector--compact {
+  min-width: 180px;
+}
+
 .item-meta {
   display: flex;
   flex-direction: column;

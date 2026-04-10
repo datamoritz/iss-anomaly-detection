@@ -10,7 +10,7 @@ Collects public ISS telemetry, stores raw hourly JSONL files, processes live eve
   - folder summary and Parquet export helpers
 - `pipeline/`
   - Kafka ingest from Lightstreamer
-  - worker for latest-state caching and anomaly detection
+  - worker for latest-state caching, bounded recent history, durable telemetry history, and anomaly detection
 - `api/`
   - FastAPI backend for items, latest telemetry, recent anomalies, and simulation
 - `frontend/`
@@ -31,7 +31,8 @@ Kafka (telemetry.raw)
         ↓
 pipeline/worker.py
    ├─ Redis (latest state)
-   ├─ PostgreSQL (anomaly history)
+   ├─ Redis (recent_history:<item>, bounded)
+   ├─ PostgreSQL (telemetry history + anomaly history)
    └─ Kafka (anomaly.events)
         ↓
 FastAPI backend
@@ -114,9 +115,12 @@ Notes:
 - API config now comes from app settings / environment variables.
 - CORS middleware is enabled from settings.
 - Latest telemetry is read from Redis hash `latest_state`.
+- Redis also stores bounded recent history lists under `recent_history:<item_id>`.
+- Postgres stores durable telemetry history for this app in `telemetry_history`.
 - `/health` now checks Redis, Postgres, and Kafka.
 - `/health/live` is a simple liveness route.
 - Postgres schema setup is deterministic and runs from shared code on API startup and worker startup.
+- Telemetry history retention is enforced once per day in the worker and deletes rows older than 28 days by default.
 
 ## Setup
 
@@ -220,6 +224,8 @@ Important container notes:
 - App containers mount [data](/Users/moritzknodler/Documents/00_Lectures/0_Spring%202026/Datacenters/Project/Code/data) at `/app/data`.
 - Kafka uses `localhost:9092` for host access and `kafka:19092` for container-to-container access.
 - Set `CORS_ALLOW_ORIGINS` in `.env` to include your future Vercel frontend domain.
+- `REDIS_RECENT_HISTORY_LIMIT` defaults to `100`.
+- `TELEMETRY_RETENTION_DAYS` defaults to `28`.
 
 ## Important Notes
 

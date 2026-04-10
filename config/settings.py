@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     DATA_ROOT: str = "data"
     COLLECTOR_RAW_ROOT: str = "data/raw"
     COLLECTOR_MANIFEST_PATH: str = "data/manifest.json"
+    REDIS_RECENT_HISTORY_LIMIT: int = 100
+    TELEMETRY_RETENTION_DAYS: int = 28
 
     @property
     def cors_origins(self) -> list[str]:
