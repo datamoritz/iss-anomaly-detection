@@ -86,7 +86,7 @@ export default function App() {
   async function handleSimulate(mode) {
     setSimStatus(null)
     try {
-      const response = await simulateAnomaly(selectedItem, mode)
+      const response = await simulateAnomaly({ item: selectedItem, mode })
       const event = response.event
       const simulatedPoint = {
         t: event.received_unix_ms ?? Date.now(),
