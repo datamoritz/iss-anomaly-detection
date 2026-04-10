@@ -233,6 +233,18 @@ export default function App() {
               <span className="meta-desc">{selectedMeta.description}</span>
             </div>
           )}
+          {latestPoint && (
+            <div className="latest-kpi">
+              <span className="latest-label">Latest</span>
+              <div className="latest-kpi-value">
+                <span className="latest-number">{latestPoint.value?.toFixed(4) ?? '—'}</span>
+                <span className="latest-unit">{selectedMeta?.unit}</span>
+              </div>
+              <span className="latest-time">
+                {new Date(latestPoint.t).toLocaleTimeString('en-US', { hour12: false })}
+              </span>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -249,24 +261,8 @@ export default function App() {
           />
         </div>
 
-        {latestPoint && (
-          <div className="latest-row">
-            <span className="latest-label">Latest</span>
-            <span className="latest-number">
-              {latestPoint.value?.toFixed(4) ?? '—'}
-            </span>
-            <span className="latest-unit">{selectedMeta?.unit}</span>
-            <span className="latest-time">
-              {new Date(latestPoint.t).toLocaleTimeString('en-US', { hour12: false })}
-            </span>
-          </div>
-        )}
-
         <div className="bottom-row">
-          <div className="log-section">
-            <span className="section-label">Anomaly Log</span>
-            <AnomalyLog anomalies={anomalies} />
-          </div>
+          <AnomalyLog anomalies={anomalies} />
           <div className="side-panels">
             <SimulationPanel
               selectedItem={selectedItem}
@@ -274,7 +270,6 @@ export default function App() {
               status={simStatus}
             />
             <SubscriptionPanel
-              items={items}
               selectedItem={selectedItem}
               onSubscribe={handleSubscribe}
               status={subscriptionStatus}

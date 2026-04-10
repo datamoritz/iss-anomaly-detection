@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 const ANOMALY_OPTIONS = [
   { value: '', label: 'All anomaly types' },
@@ -7,20 +7,15 @@ const ANOMALY_OPTIONS = [
   { value: 'sudden_jump', label: 'Sudden Jump' },
 ]
 
-export default function SubscriptionPanel({ items, selectedItem, onSubscribe, status }) {
+export default function SubscriptionPanel({ selectedItem, onSubscribe, status }) {
   const [email, setEmail] = useState('')
-  const [itemId, setItemId] = useState(selectedItem ?? '')
   const [anomalyType, setAnomalyType] = useState('')
-
-  useEffect(() => {
-    setItemId(selectedItem ?? '')
-  }, [selectedItem])
 
   async function handleSubmit(e) {
     e.preventDefault()
     await onSubscribe({
       email,
-      item_id: itemId || null,
+      item_id: selectedItem || null,
       anomaly_type: anomalyType || null,
     })
   }
@@ -39,18 +34,6 @@ export default function SubscriptionPanel({ items, selectedItem, onSubscribe, st
         />
         <select
           className="selector selector--full"
-          value={itemId}
-          onChange={(e) => setItemId(e.target.value)}
-        >
-          <option value="">All parameters</option>
-          {items.map((item) => (
-            <option key={item.item} value={item.item}>
-              {item.label}
-            </option>
-          ))}
-        </select>
-        <select
-          className="selector selector--full"
           value={anomalyType}
           onChange={(e) => setAnomalyType(e.target.value)}
         >
@@ -60,7 +43,7 @@ export default function SubscriptionPanel({ items, selectedItem, onSubscribe, st
             </option>
           ))}
         </select>
-        <button type="submit" className="sim-btn sim-btn--full">
+        <button type="submit" className="sub-btn sub-btn--full">
           Subscribe
         </button>
       </form>
