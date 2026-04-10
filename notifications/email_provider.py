@@ -41,6 +41,7 @@ def _send_via_resend(*, to: str, subject: str, html: str, text: str) -> EmailSen
         headers={
             "Authorization": f"Bearer {settings.RESEND_API_KEY}",
             "Content-Type": "application/json",
+            "User-Agent": "iss-anomaly-app/1.0",
         },
     )
 
@@ -51,4 +52,3 @@ def _send_via_resend(*, to: str, subject: str, html: str, text: str) -> EmailSen
     except error.HTTPError as exc:
         message = exc.read().decode("utf-8", errors="ignore")
         raise RuntimeError(f"Resend email failed ({exc.code}): {message}") from exc
-
