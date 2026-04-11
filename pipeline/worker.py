@@ -1,5 +1,7 @@
 import json
 import signal
+import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -11,6 +13,7 @@ from config.runtime import (
     create_redis_client,
     ensure_postgres_schema,
     insert_telemetry_history,
+    upsert_service_status,
 )
 
 import redis
@@ -30,8 +33,20 @@ KAFKA_BOOTSTRAP_SERVERS = settings.KAFKA_BOOTSTRAP_SERVERS
 TELEMETRY_TOPIC = settings.KAFKA_TELEMETRY_TOPIC
 ANOMALY_TOPIC = settings.KAFKA_ANOMALY_TOPIC
 REDIS_RECENT_HISTORY_LIMIT = settings.REDIS_RECENT_HISTORY_LIMIT
+WORKER_STATUS_SERVICE_NAME = "worker_redis_cache"
 
 running = True
+
+
+@dataclass
+class RedisWriteState:
+    degraded_since: datetime | None = None
+    next_retry_at: float = 0.0
+    retry_delay_seconds: int = 1
+
+    @property
+    def is_degraded(self) -> bool:
+        return self.degraded_since is not None
 
 
 def now_utc_iso() -> str:
@@ -85,6 +100,104 @@ def should_update_latest_state(event: dict[str, Any]) -> bool:
     # Keep Redis latest_state reserved for real telemetry so simulation
     # does not leave the chart stuck until the next collector sample arrives.
     return event.get("source") != "simulation_api"
+
+
+def reconnect_redis_client(previous_client: redis.Redis | None) -> redis.Redis:
+    if previous_client is not None:
+        try:
+            previous_client.close()
+        except Exception:
+            pass
+
+    print("[redis] reconnecting client...")
+    client = create_redis_client()
+    client.ping()
+    print("[redis] reconnected")
+    return client
+
+
+def mark_redis_cache_status(
+    conn,
+    *,
+    state: RedisWriteState,
+    message: str,
+    force: bool = False,
+) -> None:
+    if not force and not state.is_degraded:
+        return
+    status = "degraded" if state.is_degraded else "ok"
+    upsert_service_status(
+        conn,
+        service_name=WORKER_STATUS_SERVICE_NAME,
+        status=status,
+        message=message,
+        degraded_since=state.degraded_since,
+    )
+    conn.commit()
+
+
+def write_event_to_redis(
+    redis_client: redis.Redis,
+    event: dict[str, Any],
+    *,
+    state: RedisWriteState,
+    pg_conn,
+) -> redis.Redis:
+    should_write_latest = should_update_latest_state(event)
+
+    now_monotonic = time.monotonic()
+    if state.is_degraded and now_monotonic < state.next_retry_at:
+        return redis_client
+
+    attempts = 2 if not state.is_degraded else 1
+
+    for attempt in range(attempts):
+        try:
+            if state.is_degraded:
+                redis_client = reconnect_redis_client(redis_client)
+
+            append_recent_history(redis_client, event)
+            if should_write_latest:
+                save_latest_state(redis_client, event)
+
+            if state.is_degraded:
+                print("[redis] cache writes recovered")
+                state.degraded_since = None
+                state.next_retry_at = 0.0
+                state.retry_delay_seconds = 1
+                mark_redis_cache_status(
+                    pg_conn,
+                    state=state,
+                    message="Redis cache writes healthy",
+                    force=True,
+                )
+            return redis_client
+        except redis.exceptions.RedisError as exc:
+            print(
+                "[redis] write failed "
+                f"(attempt {attempt + 1}/{attempts}): {exc}"
+            )
+            if not state.is_degraded:
+                state.degraded_since = datetime.now(timezone.utc)
+
+            state.next_retry_at = time.monotonic() + state.retry_delay_seconds
+            state.retry_delay_seconds = min(
+                state.retry_delay_seconds * 2,
+                settings.WORKER_REDIS_RETRY_MAX_SECONDS,
+            )
+            mark_redis_cache_status(
+                pg_conn,
+                state=state,
+                message=(
+                    f"Redis cache writes failing: {exc}. "
+                    f"Retrying in {state.retry_delay_seconds} seconds."
+                ),
+                force=True,
+            )
+            if attempt < attempts - 1:
+                time.sleep(1)
+
+    return redis_client
 
 
 def build_anomaly_event(
@@ -256,6 +369,13 @@ def main() -> None:
     processed_count = 0
     anomaly_count = 0
     last_cleanup_day = None
+    redis_state = RedisWriteState()
+    mark_redis_cache_status(
+        pg_conn,
+        state=redis_state,
+        message="Redis cache writes healthy",
+        force=True,
+    )
 
     print("[startup] worker is running")
     print(f"[startup] consuming topic={TELEMETRY_TOPIC}")
@@ -272,10 +392,12 @@ def main() -> None:
                     trigger_source = event.get("source")
 
                     insert_telemetry_history(pg_conn, event)
-                    append_recent_history(redis_client, event)
-
-                    if should_update_latest_state(event):
-                        save_latest_state(redis_client, event)
+                    redis_client = write_event_to_redis(
+                        redis_client,
+                        event,
+                        state=redis_state,
+                        pg_conn=pg_conn,
+                    )
 
                     threshold_anomaly = detect_threshold_breach(
                         item,

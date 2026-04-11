@@ -209,6 +209,17 @@ def ensure_postgres_schema(conn) -> None:
             ON notification_log (subscription_id, sent_at DESC)
             """
         )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS service_status (
+                service_name TEXT PRIMARY KEY,
+                status TEXT NOT NULL,
+                message TEXT,
+                degraded_since TIMESTAMPTZ,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """
+        )
     conn.commit()
 
 
@@ -248,6 +259,50 @@ def cleanup_old_telemetry_history(conn) -> int:
         deleted_rows = cur.rowcount
     conn.commit()
     return deleted_rows
+
+
+def upsert_service_status(
+    conn,
+    *,
+    service_name: str,
+    status: str,
+    message: str,
+    degraded_since=None,
+) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO service_status (
+                service_name,
+                status,
+                message,
+                degraded_since,
+                updated_at
+            )
+            VALUES (%s, %s, %s, %s, NOW())
+            ON CONFLICT (service_name)
+            DO UPDATE SET
+                status = EXCLUDED.status,
+                message = EXCLUDED.message,
+                degraded_since = EXCLUDED.degraded_since,
+                updated_at = NOW()
+            """,
+            (service_name, status, message, degraded_since),
+        )
+
+
+def get_service_status(conn, service_name: str):
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT service_name, status, message, degraded_since, updated_at
+            FROM service_status
+            WHERE service_name = %s
+            LIMIT 1
+            """,
+            (service_name,),
+        )
+        return cur.fetchone()
 
 
 def check_redis() -> tuple[bool, str]:

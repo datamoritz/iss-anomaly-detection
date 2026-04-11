@@ -247,6 +247,8 @@ Important container notes:
 - Set `CORS_ALLOW_ORIGINS` in `.env` to include your future Vercel frontend domain.
 - `REDIS_RECENT_HISTORY_LIMIT` defaults to `100`.
 - `TELEMETRY_RETENTION_DAYS` defaults to `28`.
+- `WORKER_REDIS_RETRY_MAX_SECONDS` defaults to `60`.
+- `WORKER_REDIS_HEALTH_DEGRADED_AFTER_SECONDS` defaults to `300`.
 - `DEFAULT_NOTIFICATION_COOLDOWN_MINUTES` defaults to `10`.
 - Email alert env vars:
   - `EMAIL_PROVIDER`
