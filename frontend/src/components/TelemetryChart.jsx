@@ -17,19 +17,34 @@ function formatTime(ms) {
   return new Date(ms).toLocaleTimeString('en-US', { hour12: false })
 }
 
-function CustomTooltip({ active, payload, label, unit }) {
+function CustomTooltip({ active, payload, label, unit, series }) {
   if (!active || !payload?.length) return null
   return (
     <div className="tooltip">
       <div className="tooltip-time">{formatTime(label)}</div>
-      <div className="tooltip-value">
-        {payload[0].value?.toFixed(4)} {unit}
-      </div>
+      {series.map((entry) => {
+        const point = payload.find((candidate) => candidate.dataKey === entry.key)
+        if (!point) return null
+        return (
+          <div key={entry.key} className="tooltip-value">
+            {entry.label}: {point.value?.toFixed(4)} {unit}
+          </div>
+        )
+      })}
     </div>
   )
 }
 
-export default function TelemetryChart({ buffer, unit, anomalies = [], hasError = false, showBrush = false, xDomain = null }) {
+export default function TelemetryChart({
+  buffer,
+  unit,
+  anomalies = [],
+  hasError = false,
+  showBrush = false,
+  xDomain = null,
+  series = [{ key: 'value', label: 'value', color: '#22d3ee' }],
+  showAnomalyDots = true,
+}) {
   const [yDomain, setYDomain] = useState(null)
   const [brushStart, setBrushStart] = useState(0)
   const [brushEnd, setBrushEnd] = useState(Math.max(0, buffer.length - 1))
@@ -74,7 +89,11 @@ export default function TelemetryChart({ buffer, unit, anomalies = [], hasError 
       const buf = bufferRef.current
       if (!buf.length) return
 
-      const values = buf.map((p) => p.value).filter((v) => v != null)
+      const values = buf.flatMap((point) =>
+        series
+          .map((entry) => point[entry.key])
+          .filter((value) => value != null)
+      )
       const dataMin = Math.min(...values)
       const dataMax = Math.max(...values)
       const dom = yDomainRef.current
@@ -137,15 +156,19 @@ export default function TelemetryChart({ buffer, unit, anomalies = [], hasError 
             tickFormatter={(v) => v?.toFixed(2)}
             domain={yDomain ?? ['auto', 'auto']}
           />
-          <Tooltip content={<CustomTooltip unit={unit} />} />
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke="#22d3ee"
-            strokeWidth={2}
-            dot={false}
-            isAnimationActive={false}
-          />
+          <Tooltip content={<CustomTooltip unit={unit} series={series} />} />
+          {series.map((entry) => (
+            <Line
+              key={entry.key}
+              type="monotone"
+              dataKey={entry.key}
+              name={entry.label}
+              stroke={entry.color}
+              strokeWidth={2}
+              dot={false}
+              isAnimationActive={false}
+            />
+          ))}
           {visibleAnomalies.map((a, i) => (
             <ReferenceLine
               key={`vline-${i}`}
@@ -155,7 +178,7 @@ export default function TelemetryChart({ buffer, unit, anomalies = [], hasError 
               strokeDasharray="4 3"
             />
           ))}
-          {visibleAnomalies.map((a, i) => (
+          {showAnomalyDots && visibleAnomalies.map((a, i) => (
             <ReferenceDot
               key={`dot-${i}`}
               x={a.t}

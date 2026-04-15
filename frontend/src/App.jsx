@@ -17,6 +17,8 @@ import SubscriptionPanel from './components/SubscriptionPanel'
 const MAX_POINTS = 120  // ~4 minutes at 2s polling
 const POLL_INTERVAL_MS = 2000
 const SIMULATION_VISIBLE_MS = 1500
+const SOLAR_JOINT_ITEM = 'S0000004'
+const SOLAR_JOINT_CONTINUOUS_ITEM = 'S0000004__continuous'
 const HISTORY_LIMITS = {
   '1h': 5000,
   '6h': 30000,
@@ -29,13 +31,50 @@ const RANGE_OPTIONS = [
   { value: '24h', label: '24H' },
 ]
 
-function toChartPoint(point) {
-  return {
+function isContinuousSolarView(itemId) {
+  return itemId === SOLAR_JOINT_CONTINUOUS_ITEM
+}
+
+function getBackendItemId(itemId) {
+  return isContinuousSolarView(itemId) ? SOLAR_JOINT_ITEM : itemId
+}
+
+function addContinuousSolarOption(items) {
+  const solarIndex = items.findIndex((item) => item.item === SOLAR_JOINT_ITEM)
+  if (solarIndex === -1) return items
+
+  const continuousItem = {
+    ...items[solarIndex],
+    item: SOLAR_JOINT_CONTINUOUS_ITEM,
+    label: 'Solar Joint Angle (continuous)',
+    displayLabel: 'Solar Joint Angle (continuous)',
+    unit: 'sin/cos',
+    description: 'Continuous frontend-only visualization of the Solar Alpha Rotary Joint using sin(angle) and cos(angle).',
+  }
+
+  return [
+    ...items.slice(0, solarIndex + 1),
+    continuousItem,
+    ...items.slice(solarIndex + 1),
+  ]
+}
+
+function toChartPoint(point, itemId) {
+  const value = point.value
+  const chartPoint = {
     t: new Date(point.timestamp_utc).getTime(),
-    value: point.value,
+    value,
     timestamp_utc: point.timestamp_utc,
     source: point.source,
   }
+
+  if (isContinuousSolarView(itemId) && value != null) {
+    const angleRad = (value * Math.PI) / 180
+    chartPoint.sinValue = Math.sin(angleRad)
+    chartPoint.cosValue = Math.cos(angleRad)
+  }
+
+  return chartPoint
 }
 
 function historyHours(range) {
@@ -72,8 +111,9 @@ export default function App() {
   useEffect(() => {
     fetchItems()
       .then((data) => {
-        setItems(data)
-        if (data.length > 0) setSelectedItem(data[0].item)
+        const nextItems = addContinuousSolarOption(data)
+        setItems(nextItems)
+        if (nextItems.length > 0) setSelectedItem(nextItems[0].item)
       })
       .catch((e) => setError(e.message))
   }, [])
@@ -86,25 +126,26 @@ export default function App() {
   useEffect(() => {
     if (!selectedItem) return
 
+    const backendItemId = getBackendItemId(selectedItem)
     setBuffer([])
     clearTimeout(simulationResetRef.current)
 
     const loadInitialBuffer = async () => {
       try {
         if (timeRange === 'recent') {
-          const points = await fetchRecentTelemetry(selectedItem, MAX_POINTS)
-          setBuffer(points.map(toChartPoint))
+          const points = await fetchRecentTelemetry(backendItemId, MAX_POINTS)
+          setBuffer(points.map((point) => toChartPoint(point, selectedItem)))
           setError(null)
           return
         }
 
         const window = historyWindow(timeRange)
-        const points = await fetchTelemetryHistory(selectedItem, {
+        const points = await fetchTelemetryHistory(backendItemId, {
           from: window.from,
           to: window.to,
           limit: HISTORY_LIMITS[timeRange],
         })
-        setBuffer(points.map(toChartPoint))
+        setBuffer(points.map((point) => toChartPoint(point, selectedItem)))
         setError(null)
       } catch (e) {
         setError(e.message)
@@ -119,12 +160,13 @@ export default function App() {
   useEffect(() => {
     if (!selectedItem) return
 
+    const backendItemId = getBackendItemId(selectedItem)
     clearInterval(telemetryIntervalRef.current)
 
     const pollLatest = async () => {
       try {
-        const point = await fetchLatest(selectedItem)
-        const chartPoint = toChartPoint(point)
+        const point = await fetchLatest(backendItemId)
+        const chartPoint = toChartPoint(point, selectedItem)
         setLatestTelemetry(chartPoint)
 
         if (timeRange !== 'recent') {
@@ -156,12 +198,13 @@ export default function App() {
   useEffect(() => {
     if (!selectedItem) return
 
+    const backendItemId = getBackendItemId(selectedItem)
     setAnomalies([])
     clearInterval(anomalyIntervalRef.current)
 
     const pollAnomalies = async () => {
       try {
-        const data = await fetchAnomalies(selectedItem)
+        const data = await fetchAnomalies(backendItemId)
         setAnomalies(data)
       } catch {
         // silent — anomaly fetch failure shouldn't block the main chart
@@ -177,11 +220,18 @@ export default function App() {
   async function handleSimulate(mode) {
     setSimStatus(null)
     try {
-      const response = await simulateAnomaly({ item: selectedItem, mode })
+      const backendItemId = getBackendItemId(selectedItem)
+      const response = await simulateAnomaly({ item: backendItemId, mode })
       const event = response.event
       const simulatedPoint = {
         t: event.received_unix_ms ?? Date.now(),
         value: event.value_numeric,
+        ...(isContinuousSolarView(selectedItem) && event.value_numeric != null
+          ? {
+              sinValue: Math.sin((event.value_numeric * Math.PI) / 180),
+              cosValue: Math.cos((event.value_numeric * Math.PI) / 180),
+            }
+          : {}),
       }
       const baselinePoint = latestTelemetry ? { ...latestTelemetry } : null
 
@@ -199,7 +249,7 @@ export default function App() {
         }, SIMULATION_VISIBLE_MS)
       }
 
-      fetchAnomalies(selectedItem)
+      fetchAnomalies(backendItemId)
         .then((data) => setAnomalies(data))
         .catch(() => {})
 
@@ -212,7 +262,10 @@ export default function App() {
   async function handleSubscribe(payload) {
     setSubscriptionStatus(null)
     try {
-      const response = await createSubscription(payload)
+      const response = await createSubscription({
+        ...payload,
+        item_id: payload.item_id ? getBackendItemId(payload.item_id) : null,
+      })
       setSubscriptionStatus({ ok: true, message: response.message })
     } catch (e) {
       setSubscriptionStatus({ ok: false, message: e.message })
@@ -221,6 +274,14 @@ export default function App() {
 
   const selectedMeta = items.find((i) => i.item === selectedItem)
   const latestPoint = latestTelemetry ?? buffer[buffer.length - 1]
+  const chartSeries = isContinuousSolarView(selectedItem)
+    ? [
+        { key: 'sinValue', label: 'sin(angle)', color: '#22d3ee' },
+        { key: 'cosValue', label: 'cos(angle)', color: '#f59e0b' },
+      ]
+    : [
+        { key: 'value', label: selectedMeta?.label ?? 'value', color: '#22d3ee' },
+      ]
 
   return (
     <div className="app">
@@ -261,10 +322,23 @@ export default function App() {
           {latestPoint && (
             <div className="latest-kpi">
               <span className="latest-label">Latest</span>
-              <div className="latest-kpi-value">
-                <span className="latest-number">{latestPoint.value?.toFixed(4) ?? '—'}</span>
-                <span className="latest-unit">{selectedMeta?.unit}</span>
-              </div>
+              {isContinuousSolarView(selectedItem) ? (
+                <>
+                  <div className="latest-kpi-value">
+                    <span className="latest-number">{latestPoint.sinValue?.toFixed(4) ?? '—'}</span>
+                    <span className="latest-unit">sin</span>
+                  </div>
+                  <div className="latest-kpi-value">
+                    <span className="latest-number">{latestPoint.cosValue?.toFixed(4) ?? '—'}</span>
+                    <span className="latest-unit">cos</span>
+                  </div>
+                </>
+              ) : (
+                <div className="latest-kpi-value">
+                  <span className="latest-number">{latestPoint.value?.toFixed(4) ?? '—'}</span>
+                  <span className="latest-unit">{selectedMeta?.unit}</span>
+                </div>
+              )}
               <span className="latest-time">
                 {new Date(latestPoint.t).toLocaleTimeString('en-US', { hour12: false })}
               </span>
@@ -284,6 +358,8 @@ export default function App() {
             hasError={!!error}
             showBrush={timeRange !== 'recent'}
             xDomain={getXDomain(timeRange)}
+            series={chartSeries}
+            showAnomalyDots={!isContinuousSolarView(selectedItem)}
           />
         </div>
 

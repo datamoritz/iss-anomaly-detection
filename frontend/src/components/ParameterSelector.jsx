@@ -12,7 +12,7 @@ export default function ParameterSelector({ items, selectedItem, onChange }) {
       >
         {items.map((item) => (
           <option key={item.item} value={item.item}>
-            {item.label} ({item.unit})
+            {item.displayLabel ?? `${item.label} (${item.unit})`}
           </option>
         ))}
       </select>
