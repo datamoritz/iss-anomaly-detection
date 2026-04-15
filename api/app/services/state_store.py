@@ -1,7 +1,13 @@
 import json
-from config.runtime import create_postgres_connection, create_redis_client
+from config.runtime import (
+    ANGLE_CONT_PARAMETER,
+    ANGLE_ITEM_ID,
+    create_postgres_connection,
+    create_redis_client,
+    derive_angle_features,
+)
 
-from ..schemas import TelemetryPoint, AnomalyEvent
+from ..schemas import TelemetryPoint, AnomalyEvent, ContinuousAnglePoint
 
 
 def _redis_event_to_telemetry_point(raw_json: str) -> TelemetryPoint:
@@ -30,6 +36,33 @@ def _row_to_telemetry_point(row) -> TelemetryPoint:
         value=row[1],
         timestamp_utc=row[2].isoformat(),
         source=row[3],
+    )
+
+
+def _build_continuous_angle_point(
+    *,
+    angle_deg,
+    timestamp_utc,
+    source,
+    angle_rad=None,
+    angle_sin=None,
+    angle_cos=None,
+) -> ContinuousAnglePoint:
+    if angle_rad is None or angle_sin is None or angle_cos is None:
+        angle_rad, angle_sin, angle_cos = derive_angle_features(
+            ANGLE_ITEM_ID,
+            angle_deg,
+        )
+
+    return ContinuousAnglePoint(
+        parameter=ANGLE_CONT_PARAMETER,
+        item=ANGLE_ITEM_ID,
+        angle_deg=angle_deg,
+        angle_rad=angle_rad,
+        angle_sin=angle_sin,
+        angle_cos=angle_cos,
+        timestamp_utc=timestamp_utc,
+        source=source,
     )
 
 
@@ -77,6 +110,69 @@ def get_telemetry_history_by_item(item_id: str, from_utc, to_utc, limit: int = 1
             )
             rows = cur.fetchall()
         return [_row_to_telemetry_point(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def get_latest_continuous_angle():
+    r = create_redis_client()
+    raw = r.hget("latest_state", ANGLE_ITEM_ID)
+    if raw is None:
+        return None
+
+    event = json.loads(raw)
+    return _build_continuous_angle_point(
+        angle_deg=event.get("value_numeric"),
+        timestamp_utc=event["received_at_utc"],
+        source=event["source"],
+    )
+
+
+def get_recent_continuous_angle(limit: int = 100):
+    r = create_redis_client()
+    raw_entries = r.lrange(f"recent_history:{ANGLE_ITEM_ID}", 0, limit - 1)
+    points = []
+    for raw in reversed(raw_entries):
+        event = json.loads(raw)
+        points.append(
+            _build_continuous_angle_point(
+                angle_deg=event.get("value"),
+                timestamp_utc=event["timestamp_utc"],
+                source=event["source"],
+            )
+        )
+    return points
+
+
+def get_continuous_angle_history(from_utc, to_utc, limit: int = 1000):
+    conn = create_postgres_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT value_numeric, received_at_utc, source,
+                       angle_rad, angle_sin, angle_cos
+                FROM telemetry_history
+                WHERE item = %s
+                  AND received_at_utc >= %s
+                  AND received_at_utc <= %s
+                ORDER BY received_at_utc ASC
+                LIMIT %s
+                """,
+                (ANGLE_ITEM_ID, from_utc, to_utc, limit),
+            )
+            rows = cur.fetchall()
+        return [
+            _build_continuous_angle_point(
+                angle_deg=row[0],
+                timestamp_utc=row[1].isoformat(),
+                source=row[2],
+                angle_rad=row[3],
+                angle_sin=row[4],
+                angle_cos=row[5],
+            )
+            for row in rows
+        ]
     finally:
         conn.close()
 

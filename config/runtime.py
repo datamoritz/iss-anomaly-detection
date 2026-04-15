@@ -1,8 +1,13 @@
+import math
 from kafka.admin import KafkaAdminClient
 import psycopg2
 import redis
 
 from .settings import settings
+
+
+ANGLE_ITEM_ID = "S0000004"
+ANGLE_CONT_PARAMETER = "angle_cont"
 
 
 def create_redis_client() -> redis.Redis:
@@ -66,8 +71,29 @@ def ensure_postgres_schema(conn) -> None:
                 received_at_utc TIMESTAMPTZ NOT NULL,
                 value_numeric DOUBLE PRECISION,
                 value_raw TEXT,
-                source TEXT NOT NULL
+                source TEXT NOT NULL,
+                angle_rad DOUBLE PRECISION,
+                angle_sin DOUBLE PRECISION,
+                angle_cos DOUBLE PRECISION
             )
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE telemetry_history
+            ADD COLUMN IF NOT EXISTS angle_rad DOUBLE PRECISION
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE telemetry_history
+            ADD COLUMN IF NOT EXISTS angle_sin DOUBLE PRECISION
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE telemetry_history
+            ADD COLUMN IF NOT EXISTS angle_cos DOUBLE PRECISION
             """
         )
         cur.execute(
@@ -223,7 +249,19 @@ def ensure_postgres_schema(conn) -> None:
     conn.commit()
 
 
+def derive_angle_features(item: str, value_numeric: float | None):
+    if item != ANGLE_ITEM_ID or value_numeric is None:
+        return None, None, None
+
+    angle_rad = value_numeric * math.pi / 180.0
+    return angle_rad, math.sin(angle_rad), math.cos(angle_rad)
+
+
 def insert_telemetry_history(conn, event: dict) -> None:
+    angle_rad, angle_sin, angle_cos = derive_angle_features(
+        event["item"],
+        event.get("value_numeric"),
+    )
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -232,9 +270,12 @@ def insert_telemetry_history(conn, event: dict) -> None:
                 received_at_utc,
                 value_numeric,
                 value_raw,
-                source
+                source,
+                angle_rad,
+                angle_sin,
+                angle_cos
             )
-            VALUES (%s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 event["item"],
@@ -242,9 +283,35 @@ def insert_telemetry_history(conn, event: dict) -> None:
                 event.get("value_numeric"),
                 event.get("value_raw"),
                 event["source"],
+                angle_rad,
+                angle_sin,
+                angle_cos,
             ),
         )
     conn.commit()
+
+
+def backfill_angle_features(conn) -> int:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE telemetry_history
+            SET angle_rad = value_numeric * pi() / 180.0,
+                angle_sin = sin(value_numeric * pi() / 180.0),
+                angle_cos = cos(value_numeric * pi() / 180.0)
+            WHERE item = %s
+              AND value_numeric IS NOT NULL
+              AND (
+                angle_rad IS NULL
+                OR angle_sin IS NULL
+                OR angle_cos IS NULL
+              )
+            """,
+            (ANGLE_ITEM_ID,),
+        )
+        updated_rows = cur.rowcount
+    conn.commit()
+    return updated_rows
 
 
 def cleanup_old_telemetry_history(conn) -> int:

@@ -8,6 +8,17 @@ class TelemetryPoint(BaseModel):
     source: str
 
 
+class ContinuousAnglePoint(BaseModel):
+    parameter: str
+    item: str
+    angle_deg: float | None
+    angle_rad: float | None
+    angle_sin: float | None
+    angle_cos: float | None
+    timestamp_utc: str
+    source: str
+
+
 class AnomalyEvent(BaseModel):
     detected_at_utc: str
     item: str
