@@ -29,7 +29,7 @@ function CustomTooltip({ active, payload, label, unit }) {
   )
 }
 
-export default function TelemetryChart({ buffer, unit, anomalies = [], hasError = false, showBrush = false }) {
+export default function TelemetryChart({ buffer, unit, anomalies = [], hasError = false, showBrush = false, xDomain = null }) {
   const [yDomain, setYDomain] = useState(null)
   const [brushStart, setBrushStart] = useState(0)
   const [brushEnd, setBrushEnd] = useState(Math.max(0, buffer.length - 1))
@@ -98,8 +98,8 @@ export default function TelemetryChart({ buffer, unit, anomalies = [], hasError 
     return <div className="chart-empty">{msg}</div>
   }
 
-  const tMin = buffer[0]?.t ?? 0
-  const tMax = buffer[buffer.length - 1]?.t ?? 0
+  const tMin = xDomain ? xDomain[0] : (buffer[0]?.t ?? 0)
+  const tMax = xDomain ? xDomain[1] : (buffer[buffer.length - 1]?.t ?? 0)
   const visibleAnomalies = anomalies
     .map((a) => ({ ...a, t: new Date(a.detected_at_utc).getTime() }))
     .filter((a) => a.t >= tMin && a.t <= tMax)
@@ -121,12 +121,13 @@ export default function TelemetryChart({ buffer, unit, anomalies = [], hasError 
           <XAxis
             dataKey="t"
             type="number"
-            domain={['dataMin', 'dataMax']}
+            domain={xDomain ?? ['dataMin', 'dataMax']}
             tickFormatter={formatTime}
             tick={{ fill: '#4a5568', fontSize: 11 }}
             axisLine={{ stroke: '#1a2030' }}
             tickLine={false}
             minTickGap={80}
+            scale="time"
           />
           <YAxis
             tick={{ fill: '#4a5568', fontSize: 11 }}

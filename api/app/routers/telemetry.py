@@ -40,7 +40,7 @@ def telemetry_history_by_item(
     item_id: str,
     from_utc: datetime = Query(..., alias="from"),
     to_utc: datetime = Query(..., alias="to"),
-    limit: int = Query(1000, ge=1, le=10000),
+    limit: int = Query(1000, ge=1, le=100000),
 ):
     if from_utc > to_utc:
         raise HTTPException(status_code=400, detail="'from' must be earlier than or equal to 'to'")

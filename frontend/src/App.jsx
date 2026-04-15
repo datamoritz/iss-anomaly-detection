@@ -17,6 +17,11 @@ import SubscriptionPanel from './components/SubscriptionPanel'
 const MAX_POINTS = 120  // ~4 minutes at 2s polling
 const POLL_INTERVAL_MS = 2000
 const SIMULATION_VISIBLE_MS = 1500
+const HISTORY_LIMITS = {
+  '1h': 5000,
+  '6h': 30000,
+  '24h': 100000,
+}
 const RANGE_OPTIONS = [
   { value: 'recent', label: 'Live' },
   { value: '1h', label: '1H' },
@@ -33,14 +38,20 @@ function toChartPoint(point) {
   }
 }
 
+function historyHours(range) {
+  return range === '1h' ? 1 : range === '6h' ? 6 : 24
+}
+
 function historyWindow(range) {
   const now = new Date()
-  const hours = range === '1h' ? 1 : range === '6h' ? 6 : 24
-  const from = new Date(now.getTime() - hours * 60 * 60 * 1000)
-  return {
-    from: from.toISOString(),
-    to: now.toISOString(),
-  }
+  const from = new Date(now.getTime() - historyHours(range) * 60 * 60 * 1000)
+  return { from: from.toISOString(), to: now.toISOString() }
+}
+
+function getXDomain(range) {
+  if (range === 'recent') return null
+  const now = Date.now()
+  return [now - historyHours(range) * 60 * 60 * 1000, now]
 }
 
 export default function App() {
@@ -48,6 +59,7 @@ export default function App() {
   const [selectedItem, setSelectedItem] = useState(null)
   const [timeRange, setTimeRange] = useState('recent')
   const [buffer, setBuffer] = useState([])
+  const [latestTelemetry, setLatestTelemetry] = useState(null)
   const [anomalies, setAnomalies] = useState([])
   const [simStatus, setSimStatus] = useState(null)
   const [subscriptionStatus, setSubscriptionStatus] = useState(null)
@@ -70,13 +82,12 @@ export default function App() {
     return () => clearTimeout(simulationResetRef.current)
   }, [])
 
-  // Load recent/history data, then keep live polling only for the recent view.
+  // Load recent/history data for the selected range.
   useEffect(() => {
     if (!selectedItem) return
 
     setBuffer([])
     clearTimeout(simulationResetRef.current)
-    clearInterval(telemetryIntervalRef.current)
 
     const loadInitialBuffer = async () => {
       try {
@@ -91,7 +102,7 @@ export default function App() {
         const points = await fetchTelemetryHistory(selectedItem, {
           from: window.from,
           to: window.to,
-          limit: 1000,
+          limit: HISTORY_LIMITS[timeRange],
         })
         setBuffer(points.map(toChartPoint))
         setError(null)
@@ -100,15 +111,33 @@ export default function App() {
       }
     }
 
-    const poll = async () => {
+    loadInitialBuffer()
+  }, [selectedItem, timeRange])
+
+  // Always poll the canonical latest endpoint so the KPI never depends on
+  // whichever historical slice is currently rendered in the chart.
+  useEffect(() => {
+    if (!selectedItem) return
+
+    clearInterval(telemetryIntervalRef.current)
+
+    const pollLatest = async () => {
       try {
         const point = await fetchLatest(selectedItem)
+        const chartPoint = toChartPoint(point)
+        setLatestTelemetry(chartPoint)
+
+        if (timeRange !== 'recent') {
+          setError(null)
+          return
+        }
+
         setBuffer((prev) => {
           if (prev[prev.length - 1]?.timestamp_utc === point.timestamp_utc) {
             return prev
           }
 
-          const next = [...prev, toChartPoint(point)]
+          const next = [...prev, chartPoint]
           return next.slice(-MAX_POINTS)
         })
         setError(null)
@@ -117,12 +146,8 @@ export default function App() {
       }
     }
 
-    loadInitialBuffer()
-
-    if (timeRange === 'recent') {
-      poll()
-      telemetryIntervalRef.current = setInterval(poll, POLL_INTERVAL_MS)
-    }
+    pollLatest()
+    telemetryIntervalRef.current = setInterval(pollLatest, POLL_INTERVAL_MS)
 
     return () => clearInterval(telemetryIntervalRef.current)
   }, [selectedItem, timeRange])
@@ -158,7 +183,7 @@ export default function App() {
         t: event.received_unix_ms ?? Date.now(),
         value: event.value_numeric,
       }
-      const baselinePoint = latestPoint ? { ...latestPoint } : null
+      const baselinePoint = latestTelemetry ? { ...latestTelemetry } : null
 
       clearTimeout(simulationResetRef.current)
       setBuffer((prev) => [...prev, simulatedPoint].slice(-MAX_POINTS))
@@ -195,7 +220,7 @@ export default function App() {
   }
 
   const selectedMeta = items.find((i) => i.item === selectedItem)
-  const latestPoint = buffer[buffer.length - 1]
+  const latestPoint = latestTelemetry ?? buffer[buffer.length - 1]
 
   return (
     <div className="app">
@@ -258,6 +283,7 @@ export default function App() {
             anomalies={anomalies}
             hasError={!!error}
             showBrush={timeRange !== 'recent'}
+            xDomain={getXDomain(timeRange)}
           />
         </div>
 
