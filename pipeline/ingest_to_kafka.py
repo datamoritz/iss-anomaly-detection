@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from config.settings import settings
+from config.stream_monitoring import StreamMonitor
 
 from kafka import KafkaProducer
 from lightstreamer.client import LightstreamerClient, Subscription
@@ -34,6 +35,14 @@ SUBSCRIPTION_FIELDS = ["Value", "TimeStamp"]
 
 running = True
 message_count = 0
+MONITOR = StreamMonitor(
+    stream_name="app_ingest",
+    selected_items=SELECTED_ITEMS,
+    diagnostics_path=settings.APP_INGEST_DIAGNOSTICS_PATH,
+    gap_threshold_seconds=settings.APP_INGEST_GAP_THRESHOLD_SECONDS,
+    heartbeat_warn_seconds=settings.APP_INGEST_HEARTBEAT_WARN_SECONDS,
+    heartbeat_reconnect_seconds=settings.APP_INGEST_HEARTBEAT_RECONNECT_SECONDS,
+)
 
 
 def now_utc_iso() -> str:
@@ -84,9 +93,19 @@ class ClientListener:
 
     def onStatusChange(self, status: str):
         print(f"[client] status: {status}")
+        lowered = status.lower()
+        if "disconnected" in lowered:
+            MONITOR.mark_disconnect(reason=status)
+        elif "connected" in lowered:
+            MONITOR.mark_connected(status)
 
     def onServerError(self, code: int, message: str):
         print(f"[client] server error {code}: {message}")
+        MONITOR.log_event(
+            "server_error",
+            error_code=code,
+            error_message=message,
+        )
 
 
 class TelemetrySubscriptionListener:
@@ -96,6 +115,7 @@ class TelemetrySubscriptionListener:
 
     def onSubscription(self):
         print("[subscription] subscribed successfully")
+        MONITOR.mark_subscribed()
 
     def onUnsubscription(self):
         print("[subscription] unsubscribed")
@@ -122,6 +142,7 @@ class TelemetrySubscriptionListener:
                 key=item_name,
                 value=event,
             )
+            MONITOR.note_message(item_name, received_at=received_at_from_event(event))
 
             message_count += 1
             self.per_item_counts[item_name] = self.per_item_counts.get(item_name, 0) + 1
@@ -132,15 +153,21 @@ class TelemetrySubscriptionListener:
 
         except Exception as exc:
             print(f"[error] failed to process update: {exc}")
+            MONITOR.mark_exception(exc)
 
     def onSubscriptionError(self, code: int, message: str):
         print(f"[subscription] error {code}: {message}")
+        MONITOR.log_event("subscription_error", code=code, message=message)
 
 
 def handle_shutdown(signum, frame):
     global running
     print(f"\n[shutdown] received signal {signum}, stopping...")
     running = False
+
+
+def received_at_from_event(event: dict) -> datetime:
+    return datetime.fromisoformat(event["received_at_utc"])
 
 
 def main():
@@ -150,27 +177,64 @@ def main():
     print("[startup] creating Kafka producer...")
     producer = create_producer()
 
-    print("[startup] connecting to Lightstreamer...")
-    client = LightstreamerClient(LIGHTSTREAMER_SERVER, LIGHTSTREAMER_ADAPTER_SET)
-    client.addListener(ClientListener())
-
-    subscription = Subscription(
-        mode="MERGE",
-        items=SELECTED_ITEMS,
-        fields=SUBSCRIPTION_FIELDS,
-    )
-    subscription.addListener(TelemetrySubscriptionListener(producer))
-
-    client.connect()
-    client.subscribe(subscription)
-
     print("[startup] ingest_to_kafka is running")
     print(f"[startup] topic={KAFKA_TOPIC}")
     print(f"[startup] items={SELECTED_ITEMS}")
 
+    client = None
+    subscription = None
+    reconnect = False
+
     try:
         while running:
-            time.sleep(1)
+            try:
+                MONITOR.mark_connect_attempt(reconnect=reconnect)
+                client = LightstreamerClient(LIGHTSTREAMER_SERVER, LIGHTSTREAMER_ADAPTER_SET)
+                client.addListener(ClientListener())
+
+                subscription = Subscription(
+                    mode="MERGE",
+                    items=SELECTED_ITEMS,
+                    fields=SUBSCRIPTION_FIELDS,
+                )
+                subscription.addListener(TelemetrySubscriptionListener(producer))
+
+                client.connect()
+                client.subscribe(subscription)
+
+                while running:
+                    time.sleep(1)
+                    if MONITOR.check_watchdog() == "reconnect":
+                        MONITOR.mark_disconnect(reason="watchdog_forced_reconnect")
+                        reconnect = True
+                        break
+
+                if not running:
+                    break
+            except Exception as exc:
+                MONITOR.mark_exception(exc)
+                reconnect = True
+                if not running:
+                    break
+                time.sleep(2)
+            finally:
+                if client is not None and subscription is not None:
+                    try:
+                        client.unsubscribe(subscription)
+                    except Exception:
+                        pass
+
+                if client is not None:
+                    try:
+                        client.disconnect()
+                    except Exception:
+                        pass
+
+                client = None
+                subscription = None
+
+                if reconnect and running:
+                    time.sleep(2)
     finally:
         print("[shutdown] flushing Kafka producer...")
         try:
@@ -180,15 +244,7 @@ def main():
             print(f"[shutdown] producer close error: {exc}")
 
         print("[shutdown] disconnecting Lightstreamer client...")
-        try:
-            client.unsubscribe(subscription)
-        except Exception:
-            pass
-
-        try:
-            client.disconnect()
-        except Exception:
-            pass
+        MONITOR.mark_disconnect(reason="shutdown")
 
         print("[shutdown] done")
 

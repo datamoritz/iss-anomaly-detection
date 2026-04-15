@@ -69,6 +69,13 @@ Raw storage format:
 data/raw/YYYY-MM-DD/telemetry_YYYY-MM-DD_HH.jsonl
 ```
 
+Gap diagnostics:
+
+```text
+data/diagnostics/collector_gaps.jsonl
+data/diagnostics/ingest_gaps.jsonl
+```
+
 Manifest:
 
 ```text
@@ -177,6 +184,13 @@ Kafka ingest:
 python -m pipeline.ingest_to_kafka
 ```
 
+The raw collector and app ingest now both include:
+
+- connection lifecycle logging
+- heartbeat warnings after prolonged silence
+- forced reconnect after longer silence
+- persisted gap diagnostics when message gaps exceed the configured threshold
+
 Worker:
 
 ```bash
@@ -245,6 +259,11 @@ Important container notes:
 - App containers mount [data](/Users/moritzknodler/Documents/00_Lectures/0_Spring%202026/Datacenters/Project/Code/data) at `/app/data`.
 - Kafka uses `localhost:9092` for host access and `kafka:19092` for container-to-container access.
 - Set `CORS_ALLOW_ORIGINS` in `.env` to include your future Vercel frontend domain.
+- `COLLECTOR_DIAGNOSTICS_PATH` defaults to `data/diagnostics/collector_gaps.jsonl`.
+- `APP_INGEST_DIAGNOSTICS_PATH` defaults to `data/diagnostics/ingest_gaps.jsonl`.
+- `COLLECTOR_HEARTBEAT_WARN_SECONDS` and `APP_INGEST_HEARTBEAT_WARN_SECONDS` default to `15`.
+- `COLLECTOR_HEARTBEAT_RECONNECT_SECONDS` and `APP_INGEST_HEARTBEAT_RECONNECT_SECONDS` default to `45`.
+- `COLLECTOR_GAP_THRESHOLD_SECONDS` and `APP_INGEST_GAP_THRESHOLD_SECONDS` default to `60`.
 - `REDIS_RECENT_HISTORY_LIMIT` defaults to `100`.
 - `TELEMETRY_RETENTION_DAYS` defaults to `28`.
 - `WORKER_REDIS_RETRY_MAX_SECONDS` defaults to `60`.

@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from config.settings import settings
+from config.stream_monitoring import StreamMonitor, utc_now_iso
 from lightstreamer.client import (
     ClientListener,
     LightstreamerClient,
@@ -44,13 +45,6 @@ STATS_LOCK = threading.Lock()
 START_MONOTONIC = time.monotonic()
 RAW_OUTPUT_ROOT = Path(settings.COLLECTOR_RAW_ROOT)
 MANIFEST_PATH = Path(settings.COLLECTOR_MANIFEST_PATH)
-
-
-def utc_now_iso():
-    """Return the current UTC time in ISO format for logging."""
-    return datetime.now(timezone.utc).isoformat()
-
-
 def parse_numeric_value(value_raw):
     """Parse a float when possible and otherwise return None."""
     try:
@@ -98,6 +92,14 @@ def make_empty_stats():
 
 
 ITEM_STATS = make_empty_stats()
+MONITOR = StreamMonitor(
+    stream_name="collector",
+    selected_items=TELEMETRY_ITEMS,
+    diagnostics_path=settings.COLLECTOR_DIAGNOSTICS_PATH,
+    gap_threshold_seconds=settings.COLLECTOR_GAP_THRESHOLD_SECONDS,
+    heartbeat_warn_seconds=settings.COLLECTOR_HEARTBEAT_WARN_SECONDS,
+    heartbeat_reconnect_seconds=settings.COLLECTOR_HEARTBEAT_RECONNECT_SECONDS,
+)
 
 
 class HourlyJsonlWriter:
@@ -151,9 +153,19 @@ class StatusPrinter(ClientListener):
 
     def onStatusChange(self, status):
         print(f"[client] status: {status}")
+        lowered = status.lower()
+        if "disconnected" in lowered:
+            MONITOR.mark_disconnect(reason=status)
+        elif "connected" in lowered:
+            MONITOR.mark_connected(status)
 
     def onServerError(self, error_code, error_message):
         print(f"[client] server error {error_code}: {error_message}")
+        MONITOR.log_event(
+            "server_error",
+            error_code=error_code,
+            error_message=error_message,
+        )
 
 
 class TelemetryRecorder(SubscriptionListener):
@@ -161,9 +173,11 @@ class TelemetryRecorder(SubscriptionListener):
 
     def onSubscription(self):
         print("[subscription] subscribed successfully")
+        MONITOR.mark_subscribed()
 
     def onSubscriptionError(self, code, message):
         print(f"[subscription] error {code}: {message}")
+        MONITOR.log_event("subscription_error", code=code, message=message)
         STOP_EVENT.set()
 
     def onItemUpdate(self, update):
@@ -183,6 +197,7 @@ class TelemetryRecorder(SubscriptionListener):
         }
 
         WRITER.write_record(record, received_at)
+        MONITOR.note_message(item, received_at)
 
         with STATS_LOCK:
             ITEM_STATS[item]["total_messages"] += 1
@@ -253,24 +268,64 @@ def main():
     print(f"[client] counts interval: {args.counts_interval} seconds")
     write_manifest()
 
-    client = LightstreamerClient("https://push.lightstreamer.com", "ISSLIVE")
-    client.addListener(StatusPrinter())
-
-    subscription = Subscription("MERGE", TELEMETRY_ITEMS, TELEMETRY_FIELDS)
-    subscription.setRequestedSnapshot("yes")
-    subscription.addListener(TelemetryRecorder())
-
-    client.subscribe(subscription)
-    client.connect()
-
     threading.Thread(
         target=counts_loop,
         args=(args.counts_interval,),
         daemon=True,
     ).start()
 
-    STOP_EVENT.wait()
-    client.disconnect()
+    client = None
+    subscription = None
+    reconnect = False
+
+    try:
+        while not STOP_EVENT.is_set():
+            try:
+                MONITOR.mark_connect_attempt(reconnect=reconnect)
+                client = LightstreamerClient("https://push.lightstreamer.com", "ISSLIVE")
+                client.addListener(StatusPrinter())
+
+                subscription = Subscription("MERGE", TELEMETRY_ITEMS, TELEMETRY_FIELDS)
+                subscription.setRequestedSnapshot("yes")
+                subscription.addListener(TelemetryRecorder())
+
+                client.subscribe(subscription)
+                client.connect()
+
+                while not STOP_EVENT.wait(1):
+                    if MONITOR.check_watchdog() == "reconnect":
+                        MONITOR.mark_disconnect(reason="watchdog_forced_reconnect")
+                        reconnect = True
+                        break
+                else:
+                    break
+            except Exception as exc:
+                MONITOR.mark_exception(exc)
+                reconnect = True
+                if STOP_EVENT.is_set():
+                    break
+                time.sleep(2)
+            finally:
+                if client is not None and subscription is not None:
+                    try:
+                        client.unsubscribe(subscription)
+                    except Exception:
+                        pass
+
+                if client is not None:
+                    try:
+                        client.disconnect()
+                    except Exception:
+                        pass
+
+                client = None
+                subscription = None
+
+                if reconnect and not STOP_EVENT.is_set():
+                    time.sleep(2)
+    finally:
+        MONITOR.mark_disconnect(reason="shutdown")
+
     WRITER.close()
 
     total_runtime_seconds = time.monotonic() - START_MONOTONIC

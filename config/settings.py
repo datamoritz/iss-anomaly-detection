@@ -45,6 +45,14 @@ class Settings(BaseSettings):
     DATA_ROOT: str = "data"
     COLLECTOR_RAW_ROOT: str = "data/raw"
     COLLECTOR_MANIFEST_PATH: str = "data/manifest.json"
+    COLLECTOR_DIAGNOSTICS_PATH: str = "data/diagnostics/collector_gaps.jsonl"
+    COLLECTOR_HEARTBEAT_WARN_SECONDS: int = 15
+    COLLECTOR_HEARTBEAT_RECONNECT_SECONDS: int = 45
+    COLLECTOR_GAP_THRESHOLD_SECONDS: int = 60
+    APP_INGEST_DIAGNOSTICS_PATH: str = "data/diagnostics/ingest_gaps.jsonl"
+    APP_INGEST_HEARTBEAT_WARN_SECONDS: int = 15
+    APP_INGEST_HEARTBEAT_RECONNECT_SECONDS: int = 45
+    APP_INGEST_GAP_THRESHOLD_SECONDS: int = 60
     REDIS_RECENT_HISTORY_LIMIT: int = 100
     TELEMETRY_RETENTION_DAYS: int = 28
     WORKER_REDIS_RETRY_MAX_SECONDS: int = 60
