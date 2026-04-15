@@ -13,8 +13,40 @@ import {
   Brush,
 } from 'recharts'
 
+const GAP_BREAK_MS = 60_000
+
 function formatTime(ms) {
   return new Date(ms).toLocaleTimeString('en-US', { hour12: false })
+}
+
+function buildChartData(buffer, series, gapBreakMs) {
+  if (buffer.length < 2) return buffer
+
+  const keys = Array.from(new Set(['value', ...series.map((entry) => entry.key)]))
+  const chartData = [buffer[0]]
+
+  for (let i = 1; i < buffer.length; i += 1) {
+    const prev = buffer[i - 1]
+    const current = buffer[i]
+
+    if (current.t - prev.t > gapBreakMs) {
+      const gapPoint = {
+        t: prev.t + 1,
+        timestamp_utc: new Date(prev.t + 1).toISOString(),
+        source: current.source,
+      }
+
+      keys.forEach((key) => {
+        gapPoint[key] = null
+      })
+
+      chartData.push(gapPoint)
+    }
+
+    chartData.push(current)
+  }
+
+  return chartData
 }
 
 function CustomTooltip({ active, payload, label, unit, series }) {
@@ -45,21 +77,22 @@ export default function TelemetryChart({
   series = [{ key: 'value', label: 'value', color: '#22d3ee' }],
   showAnomalyDots = true,
 }) {
+  const chartData = buildChartData(buffer, series, GAP_BREAK_MS)
   const [yDomain, setYDomain] = useState(null)
   const [brushStart, setBrushStart] = useState(0)
-  const [brushEnd, setBrushEnd] = useState(Math.max(0, buffer.length - 1))
+  const [brushEnd, setBrushEnd] = useState(Math.max(0, chartData.length - 1))
   const pinnedToEnd = useRef(true)
-  const prevLengthRef = useRef(buffer.length)
+  const prevLengthRef = useRef(chartData.length)
   const containerRef = useRef(null)
   const yDomainRef = useRef(yDomain)
-  const bufferRef = useRef(buffer)
+  const chartDataRef = useRef(chartData)
 
   useEffect(() => { yDomainRef.current = yDomain }, [yDomain])
-  useEffect(() => { bufferRef.current = buffer }, [buffer])
+  useEffect(() => { chartDataRef.current = chartData }, [chartData])
 
   // Manage brush indices as buffer grows or resets
   useEffect(() => {
-    const len = buffer.length
+    const len = chartData.length
     const prevLen = prevLengthRef.current
 
     if (len === 0) {
@@ -72,12 +105,12 @@ export default function TelemetryChart({
     }
 
     prevLengthRef.current = len
-  }, [buffer.length])
+  }, [chartData.length])
 
   // Reset Y domain when buffer is cleared (param/range switch)
   useEffect(() => {
-    if (buffer.length === 0) setYDomain(null)
-  }, [buffer.length])
+    if (chartData.length === 0) setYDomain(null)
+  }, [chartData.length])
 
   // Wheel handler for vertical zoom — registered with passive:false so preventDefault works
   useEffect(() => {
@@ -86,7 +119,7 @@ export default function TelemetryChart({
 
     const handler = (e) => {
       e.preventDefault()
-      const buf = bufferRef.current
+      const buf = chartDataRef.current
       if (!buf.length) return
 
       const values = buf.flatMap((point) =>
@@ -110,15 +143,15 @@ export default function TelemetryChart({
     return () => el.removeEventListener('wheel', handler)
   }, [])
 
-  if (buffer.length === 0) {
+  if (chartData.length === 0) {
     const msg = hasError
       ? 'No data — item not yet in pipeline state'
       : 'Waiting for data…'
     return <div className="chart-empty">{msg}</div>
   }
 
-  const tMin = xDomain ? xDomain[0] : (buffer[0]?.t ?? 0)
-  const tMax = xDomain ? xDomain[1] : (buffer[buffer.length - 1]?.t ?? 0)
+  const tMin = xDomain ? xDomain[0] : (chartData[0]?.t ?? 0)
+  const tMax = xDomain ? xDomain[1] : (chartData[chartData.length - 1]?.t ?? 0)
   const visibleAnomalies = anomalies
     .map((a) => ({ ...a, t: new Date(a.detected_at_utc).getTime() }))
     .filter((a) => a.t >= tMin && a.t <= tMax)
@@ -135,7 +168,7 @@ export default function TelemetryChart({
         </button>
       )}
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={buffer} margin={chartMargin}>
+        <LineChart data={chartData} margin={chartMargin}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1a2030" vertical={false} />
           <XAxis
             dataKey="t"
@@ -193,7 +226,7 @@ export default function TelemetryChart({
             <Brush
               dataKey="t"
               startIndex={brushStart}
-              endIndex={Math.min(brushEnd, buffer.length - 1)}
+              endIndex={Math.min(brushEnd, chartData.length - 1)}
               height={28}
               stroke="#1a2030"
               fill="#080b10"
@@ -202,7 +235,7 @@ export default function TelemetryChart({
               onChange={({ startIndex, endIndex }) => {
                 setBrushStart(startIndex)
                 setBrushEnd(endIndex)
-                pinnedToEnd.current = endIndex >= buffer.length - 1
+                pinnedToEnd.current = endIndex >= chartData.length - 1
               }}
             />
           )}
