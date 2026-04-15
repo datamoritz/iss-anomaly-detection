@@ -2,8 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import {
   fetchItems,
   fetchLatest,
+  fetchLatestContinuousAngle,
   fetchRecentTelemetry,
+  fetchRecentContinuousAngle,
   fetchTelemetryHistory,
+  fetchContinuousAngleHistory,
   fetchAnomalies,
   simulateAnomaly,
   createSubscription,
@@ -60,21 +63,23 @@ function addContinuousSolarOption(items) {
 }
 
 function toChartPoint(point, itemId) {
-  const value = point.value
-  const chartPoint = {
+  if (isContinuousSolarView(itemId)) {
+    return {
+      t: new Date(point.timestamp_utc).getTime(),
+      value: point.angle_deg,
+      sinValue: point.angle_sin,
+      cosValue: point.angle_cos,
+      timestamp_utc: point.timestamp_utc,
+      source: point.source,
+    }
+  }
+
+  return {
     t: new Date(point.timestamp_utc).getTime(),
-    value,
+    value: point.value,
     timestamp_utc: point.timestamp_utc,
     source: point.source,
   }
-
-  if (isContinuousSolarView(itemId) && value != null) {
-    const angleRad = (value * Math.PI) / 180
-    chartPoint.sinValue = Math.sin(angleRad)
-    chartPoint.cosValue = Math.cos(angleRad)
-  }
-
-  return chartPoint
 }
 
 function historyHours(range) {
@@ -133,18 +138,26 @@ export default function App() {
     const loadInitialBuffer = async () => {
       try {
         if (timeRange === 'recent') {
-          const points = await fetchRecentTelemetry(backendItemId, MAX_POINTS)
+          const points = isContinuousSolarView(selectedItem)
+            ? await fetchRecentContinuousAngle(MAX_POINTS)
+            : await fetchRecentTelemetry(backendItemId, MAX_POINTS)
           setBuffer(points.map((point) => toChartPoint(point, selectedItem)))
           setError(null)
           return
         }
 
         const window = historyWindow(timeRange)
-        const points = await fetchTelemetryHistory(backendItemId, {
-          from: window.from,
-          to: window.to,
-          limit: HISTORY_LIMITS[timeRange],
-        })
+        const points = isContinuousSolarView(selectedItem)
+          ? await fetchContinuousAngleHistory({
+              from: window.from,
+              to: window.to,
+              limit: HISTORY_LIMITS[timeRange],
+            })
+          : await fetchTelemetryHistory(backendItemId, {
+              from: window.from,
+              to: window.to,
+              limit: HISTORY_LIMITS[timeRange],
+            })
         setBuffer(points.map((point) => toChartPoint(point, selectedItem)))
         setError(null)
       } catch (e) {
@@ -165,7 +178,9 @@ export default function App() {
 
     const pollLatest = async () => {
       try {
-        const point = await fetchLatest(backendItemId)
+        const point = isContinuousSolarView(selectedItem)
+          ? await fetchLatestContinuousAngle()
+          : await fetchLatest(backendItemId)
         const chartPoint = toChartPoint(point, selectedItem)
         setLatestTelemetry(chartPoint)
 
