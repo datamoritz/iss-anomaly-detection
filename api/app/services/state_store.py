@@ -110,18 +110,58 @@ def get_telemetry_history_by_item(item_id: str, from_utc, to_utc, limit: int = 1
     conn = create_postgres_connection()
     try:
         with conn.cursor() as cur:
+            # Count total rows in the window first so we can decide whether
+            # to downsample.  Two queries is cheaper than returning 20k rows.
             cur.execute(
                 """
-                SELECT item, value_numeric, received_at_utc, source
+                SELECT COUNT(*)
                 FROM telemetry_history
                 WHERE item = %s
                   AND received_at_utc >= %s
                   AND received_at_utc <= %s
-                ORDER BY received_at_utc ASC
-                LIMIT %s
                 """,
-                (item_id, from_utc, to_utc, limit),
+                (item_id, from_utc, to_utc),
             )
+            total = cur.fetchone()[0]
+
+            if total <= limit:
+                # Sparse enough — return everything, no sampling needed.
+                cur.execute(
+                    """
+                    SELECT item, value_numeric, received_at_utc, source
+                    FROM telemetry_history
+                    WHERE item = %s
+                      AND received_at_utc >= %s
+                      AND received_at_utc <= %s
+                    ORDER BY received_at_utc ASC
+                    """,
+                    (item_id, from_utc, to_utc),
+                )
+            else:
+                # Dense data: pick one representative row per time bucket so
+                # the returned points are spread evenly across the full window.
+                cur.execute(
+                    """
+                    SELECT item, value_numeric, received_at_utc, source
+                    FROM (
+                        SELECT
+                            item, value_numeric, received_at_utc, source,
+                            NTILE(%s) OVER (ORDER BY received_at_utc) AS bucket,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY NTILE(%s) OVER (ORDER BY received_at_utc)
+                                ORDER BY received_at_utc
+                            ) AS rn
+                        FROM telemetry_history
+                        WHERE item = %s
+                          AND received_at_utc >= %s
+                          AND received_at_utc <= %s
+                    ) bucketed
+                    WHERE rn = 1
+                    ORDER BY received_at_utc ASC
+                    """,
+                    (limit, limit, item_id, from_utc, to_utc),
+                )
+
             rows = cur.fetchall()
         return [_row_to_telemetry_point(row) for row in rows]
     finally:
@@ -172,17 +212,54 @@ def get_continuous_angle_history(from_utc, to_utc, limit: int = 1000):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT value_numeric, received_at_utc, source,
-                       angle_rad, angle_sin, angle_cos
+                SELECT COUNT(*)
                 FROM telemetry_history
                 WHERE item = %s
                   AND received_at_utc >= %s
                   AND received_at_utc <= %s
-                ORDER BY received_at_utc ASC
-                LIMIT %s
                 """,
-                (ANGLE_ITEM_ID, from_utc, to_utc, limit),
+                (ANGLE_ITEM_ID, from_utc, to_utc),
             )
+            total = cur.fetchone()[0]
+
+            if total <= limit:
+                cur.execute(
+                    """
+                    SELECT value_numeric, received_at_utc, source,
+                           angle_rad, angle_sin, angle_cos
+                    FROM telemetry_history
+                    WHERE item = %s
+                      AND received_at_utc >= %s
+                      AND received_at_utc <= %s
+                    ORDER BY received_at_utc ASC
+                    """,
+                    (ANGLE_ITEM_ID, from_utc, to_utc),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT value_numeric, received_at_utc, source,
+                           angle_rad, angle_sin, angle_cos
+                    FROM (
+                        SELECT
+                            value_numeric, received_at_utc, source,
+                            angle_rad, angle_sin, angle_cos,
+                            NTILE(%s) OVER (ORDER BY received_at_utc) AS bucket,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY NTILE(%s) OVER (ORDER BY received_at_utc)
+                                ORDER BY received_at_utc
+                            ) AS rn
+                        FROM telemetry_history
+                        WHERE item = %s
+                          AND received_at_utc >= %s
+                          AND received_at_utc <= %s
+                    ) bucketed
+                    WHERE rn = 1
+                    ORDER BY received_at_utc ASC
+                    """,
+                    (limit, limit, ANGLE_ITEM_ID, from_utc, to_utc),
+                )
+
             rows = cur.fetchall()
         return [
             _build_continuous_angle_point(

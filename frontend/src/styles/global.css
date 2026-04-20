@@ -170,6 +170,46 @@ body {
   max-width: 440px;
 }
 
+/* ── Baseline features stats ─────────────────────────────── */
+
+.features-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.features-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.features-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.features-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.features-value {
+  font-size: 13px;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+.features-sep {
+  color: var(--border);
+  font-size: 14px;
+  align-self: flex-end;
+  padding-bottom: 1px;
+}
+
 /* ── Error ───────────────────────────────────────────────── */
 
 .error-banner {

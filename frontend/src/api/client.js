@@ -52,6 +52,13 @@ export async function fetchContinuousAngleHistory({ from, to, limit = 1000 }) {
   return res.json()
 }
 
+export async function fetchTelemetryFeatures(itemId) {
+  const res = await fetch(`${API_BASE}/api/v1/telemetry/features/${itemId}`)
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`Failed to fetch telemetry features (${res.status})`)
+  return res.json()
+}
+
 export async function fetchAnomalies(itemId) {
   const res = await fetch(`${API_BASE}/api/v1/anomalies/recent/${itemId}?limit=50`)
   if (!res.ok) throw new Error(`Failed to fetch anomalies (${res.status})`)

@@ -8,6 +8,7 @@ import {
   fetchTelemetryHistory,
   fetchContinuousAngleHistory,
   fetchAnomalies,
+  fetchTelemetryFeatures,
   simulateAnomaly,
   createSubscription,
 } from './api/client'
@@ -105,6 +106,7 @@ export default function App() {
   const [buffer, setBuffer] = useState([])
   const [latestTelemetry, setLatestTelemetry] = useState(null)
   const [anomalies, setAnomalies] = useState([])
+  const [features, setFeatures] = useState(null)
   const [simStatus, setSimStatus] = useState(null)
   const [subscriptionStatus, setSubscriptionStatus] = useState(null)
   const [error, setError] = useState(null)
@@ -208,6 +210,16 @@ export default function App() {
 
     return () => clearInterval(telemetryIntervalRef.current)
   }, [selectedItem, timeRange])
+
+  // Features fetch — once per parameter selection
+  useEffect(() => {
+    if (!selectedItem) return
+    const backendItemId = getBackendItemId(selectedItem)
+    setFeatures(null)
+    fetchTelemetryFeatures(backendItemId)
+      .then(setFeatures)
+      .catch(() => setFeatures(null))
+  }, [selectedItem])
 
   // Anomaly polling — 5s
   useEffect(() => {
@@ -332,6 +344,27 @@ export default function App() {
             <div className="item-meta">
               <span className="meta-label">{selectedMeta.label}</span>
               <span className="meta-desc">{selectedMeta.description}</span>
+            </div>
+          )}
+          {features && (
+            <div className="features-stats">
+              <span className="selector-label">Baseline (n={features.value_count})</span>
+              <div className="features-row">
+                <span className="features-item">
+                  <span className="features-label">Mean</span>
+                  <span className="features-value">{features.baseline_mean.toFixed(3)}</span>
+                </span>
+                <span className="features-sep">·</span>
+                <span className="features-item">
+                  <span className="features-label">Std</span>
+                  <span className="features-value">{features.baseline_std.toFixed(3)}</span>
+                </span>
+                <span className="features-sep">·</span>
+                <span className="features-item">
+                  <span className="features-label">dt</span>
+                  <span className="features-value">{features.median_delta_t_seconds.toFixed(1)}s</span>
+                </span>
+              </div>
             </div>
           )}
           {latestPoint && (
