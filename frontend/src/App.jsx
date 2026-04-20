@@ -10,6 +10,7 @@ import {
   fetchAnomalies,
   fetchTelemetryFeatures,
   simulateAnomaly,
+  postInjection,
   createSubscription,
 } from './api/client'
 import ParameterSelector from './components/ParameterSelector'
@@ -286,6 +287,20 @@ export default function App() {
     }
   }
 
+  async function handleInject(payload) {
+    setSimStatus(null)
+    try {
+      await postInjection(payload)
+      const backendItemId = getBackendItemId(selectedItem)
+      fetchAnomalies(backendItemId)
+        .then((data) => setAnomalies(data))
+        .catch(() => {})
+      setSimStatus({ ok: true, message: `Prototype injected` })
+    } catch (e) {
+      setSimStatus({ ok: false, message: e.message })
+    }
+  }
+
   async function handleSubscribe(payload) {
     setSubscriptionStatus(null)
     try {
@@ -419,6 +434,7 @@ export default function App() {
             <SimulationPanel
               selectedItem={selectedItem}
               onSimulate={handleSimulate}
+              onInject={handleInject}
               status={simStatus}
             />
             <SubscriptionPanel
