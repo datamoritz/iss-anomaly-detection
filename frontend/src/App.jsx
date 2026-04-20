@@ -425,6 +425,7 @@ export default function App() {
             xDomain={getXDomain(timeRange)}
             series={chartSeries}
             showAnomalyDots={!isContinuousSolarView(selectedItem)}
+            jumpBreakThreshold={selectedItem === SOLAR_JOINT_ITEM ? 180 : null}
           />
         </div>
 

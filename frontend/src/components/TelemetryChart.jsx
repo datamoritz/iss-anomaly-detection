@@ -19,7 +19,7 @@ function formatTime(ms) {
   return new Date(ms).toLocaleTimeString('en-US', { hour12: false })
 }
 
-function buildChartData(buffer, series, gapBreakMs) {
+function buildChartData(buffer, series, gapBreakMs, jumpBreakThreshold) {
   if (buffer.length < 2) return buffer
 
   const keys = Array.from(new Set(['value', ...series.map((entry) => entry.key)]))
@@ -29,18 +29,15 @@ function buildChartData(buffer, series, gapBreakMs) {
     const prev = buffer[i - 1]
     const current = buffer[i]
 
-    if (current.t - prev.t > gapBreakMs) {
-      const gapPoint = {
-        t: prev.t + 1,
-        timestamp_utc: new Date(prev.t + 1).toISOString(),
-        source: current.source,
-      }
+    const timeGap = current.t - prev.t > gapBreakMs
+    const valueJump = jumpBreakThreshold != null &&
+      prev.value != null && current.value != null &&
+      Math.abs(current.value - prev.value) > jumpBreakThreshold
 
-      keys.forEach((key) => {
-        gapPoint[key] = null
-      })
-
-      chartData.push(gapPoint)
+    if (timeGap || valueJump) {
+      const breakPoint = { t: prev.t + 1, timestamp_utc: new Date(prev.t + 1).toISOString(), source: current.source }
+      keys.forEach((key) => { breakPoint[key] = null })
+      chartData.push(breakPoint)
     }
 
     chartData.push(current)
@@ -76,8 +73,9 @@ export default function TelemetryChart({
   xDomain = null,
   series = [{ key: 'value', label: 'value', color: '#22d3ee' }],
   showAnomalyDots = true,
+  jumpBreakThreshold = null,
 }) {
-  const chartData = buildChartData(buffer, series, GAP_BREAK_MS)
+  const chartData = buildChartData(buffer, series, GAP_BREAK_MS, jumpBreakThreshold)
   const [yDomain, setYDomain] = useState(null)
   const [brushStart, setBrushStart] = useState(0)
   const [brushEnd, setBrushEnd] = useState(Math.max(0, chartData.length - 1))
