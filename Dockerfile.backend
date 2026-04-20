@@ -15,6 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY api ./api
 COPY collector ./collector
 COPY config ./config
+COPY data ./data
+COPY injections ./injections
 COPY notifications ./notifications
 COPY pipeline ./pipeline
 

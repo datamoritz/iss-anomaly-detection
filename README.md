@@ -255,6 +255,7 @@ Container services:
 - `worker`
 - `ingest`
 - `notifications`
+- `injections`
 
 Important container notes:
 
@@ -262,7 +263,9 @@ Important container notes:
 - App containers mount [data](/Users/moritzknodler/Documents/00_Lectures/0_Spring%202026/Datacenters/Project/Code/data) at `/app/data`.
 - Kafka uses `localhost:9092` for host access and `kafka:19092` for container-to-container access.
 - `KAFKA_INJECTION_TOPIC` defaults to `injection.jobs`.
+- `KAFKA_INJECTION_CONSUMER_GROUP` defaults to `iss-injection-worker`.
 - `PROTOTYPE_LIBRARY_DIR` defaults to `data/anomaly_prototypes/smap_final9_v01`.
+- `INJECTION_MAX_POINTS` defaults to `500`.
 - Set `CORS_ALLOW_ORIGINS` in `.env` to include your future Vercel frontend domain.
 - `COLLECTOR_DIAGNOSTICS_PATH` defaults to `data/diagnostics/collector_gaps.jsonl`.
 - `APP_INGEST_DIAGNOSTICS_PATH` defaults to `data/diagnostics/ingest_gaps.jsonl`.

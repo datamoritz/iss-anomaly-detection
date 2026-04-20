@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     KAFKA_INJECTION_TOPIC: str = "injection.jobs"
     KAFKA_CONSUMER_GROUP: str = "iss-worker"
     KAFKA_NOTIFICATION_CONSUMER_GROUP: str = "iss-notifications"
+    KAFKA_INJECTION_CONSUMER_GROUP: str = "iss-injection-worker"
 
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
@@ -57,6 +58,7 @@ class Settings(BaseSettings):
     APP_INGEST_GAP_THRESHOLD_SECONDS: int = 60
     REDIS_RECENT_HISTORY_LIMIT: int = 100
     REDIS_FEATURE_WINDOW_SIZE: int = 100
+    INJECTION_MAX_POINTS: int = 500
     TELEMETRY_RETENTION_DAYS: int = 28
     WORKER_REDIS_RETRY_MAX_SECONDS: int = 60
     WORKER_REDIS_HEALTH_DEGRADED_AFTER_SECONDS: int = 300

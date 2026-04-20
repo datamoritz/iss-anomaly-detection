@@ -174,7 +174,9 @@ def should_update_feature_state(
     threshold_anomaly: Optional[dict[str, Any]],
     jump_anomaly: Optional[dict[str, Any]],
 ) -> bool:
-    if event.get("source") == "simulation_api":
+    if event.get("source") in {"simulation_api", "prototype_injection_worker"}:
+        return False
+    if event.get("is_injected"):
         return False
     if event.get("value_numeric") is None:
         return False

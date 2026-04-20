@@ -60,6 +60,37 @@ def get_feature_snapshot(item_id: str) -> dict | None:
     return json.loads(raw)
 
 
+def validate_feature_snapshot_for_injection(item_id: str, feature_snapshot: dict | None) -> None:
+    if feature_snapshot is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"No rolling feature state found for telemetry item '{item_id}'. "
+                "Wait for enough normal history to accumulate first."
+            ),
+        )
+
+    if feature_snapshot.get("baseline_mean") is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Feature state for '{item_id}' does not yet include a baseline mean",
+        )
+
+    baseline_std = feature_snapshot.get("baseline_std")
+    if baseline_std is None or baseline_std <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Feature state for '{item_id}' does not yet include a usable baseline std",
+        )
+
+    median_delta_t_seconds = feature_snapshot.get("median_delta_t_seconds")
+    if median_delta_t_seconds is None or median_delta_t_seconds <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Feature state for '{item_id}' does not yet include a usable cadence",
+        )
+
+
 def create_kafka_producer() -> KafkaProducer:
     return KafkaProducer(
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
@@ -164,16 +195,12 @@ def create_injection_job(request: InjectionJobCreateRequest) -> dict:
         )
 
     feature_snapshot = get_feature_snapshot(request.item_id)
-    if feature_snapshot is None:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                f"No rolling feature state found for telemetry item '{request.item_id}'. "
-                "Wait for enough normal history to accumulate first."
-            ),
-        )
+    validate_feature_snapshot_for_injection(request.item_id, feature_snapshot)
 
-    points_planned = lengths[request.prototype_id]
+    points_planned = min(
+        settings.INJECTION_MAX_POINTS,
+        max(1, int(round(lengths[request.prototype_id] * request.time_scale))),
+    )
     job_id = str(uuid4())
     job_event = build_injection_job_event(
         job_id=job_id,
