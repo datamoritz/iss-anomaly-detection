@@ -346,52 +346,54 @@ export default function App() {
               <span className="meta-desc">{selectedMeta.description}</span>
             </div>
           )}
-          {features && (
-            <div className="features-stats">
-              <span className="selector-label">Baseline (n={features.value_count})</span>
-              <div className="features-row">
-                <span className="features-item">
-                  <span className="features-label">Mean</span>
-                  <span className="features-value">{features.baseline_mean.toFixed(3)}</span>
-                </span>
-                <span className="features-sep">·</span>
-                <span className="features-item">
-                  <span className="features-label">Std</span>
-                  <span className="features-value">{features.baseline_std.toFixed(3)}</span>
-                </span>
-                <span className="features-sep">·</span>
-                <span className="features-item">
-                  <span className="features-label">dt</span>
-                  <span className="features-value">{features.median_delta_t_seconds.toFixed(1)}s</span>
+          <div className="right-kpi-group">
+            {features && (
+              <div className="features-stats">
+                <span className="selector-label">Baseline (n={features.value_count})</span>
+                <div className="features-row">
+                  <span className="features-item">
+                    <span className="features-label">Mean</span>
+                    <span className="features-value">{features.baseline_mean.toFixed(3)}</span>
+                  </span>
+                  <span className="features-sep">·</span>
+                  <span className="features-item">
+                    <span className="features-label">Std</span>
+                    <span className="features-value">{features.baseline_std.toFixed(3)}</span>
+                  </span>
+                  <span className="features-sep">·</span>
+                  <span className="features-item">
+                    <span className="features-label">dt</span>
+                    <span className="features-value">{features.median_delta_t_seconds.toFixed(1)}s</span>
+                  </span>
+                </div>
+              </div>
+            )}
+            {latestPoint && (
+              <div className="latest-kpi">
+                <span className="latest-label">Latest</span>
+                {isContinuousSolarView(selectedItem) ? (
+                  <>
+                    <div className="latest-kpi-value">
+                      <span className="latest-number">{latestPoint.sinValue?.toFixed(4) ?? '—'}</span>
+                      <span className="latest-unit">sin</span>
+                    </div>
+                    <div className="latest-kpi-value">
+                      <span className="latest-number">{latestPoint.cosValue?.toFixed(4) ?? '—'}</span>
+                      <span className="latest-unit">cos</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="latest-kpi-value">
+                    <span className="latest-number">{latestPoint.value?.toFixed(4) ?? '—'}</span>
+                    <span className="latest-unit">{selectedMeta?.unit}</span>
+                  </div>
+                )}
+                <span className="latest-time">
+                  {new Date(latestPoint.t).toLocaleTimeString('en-US', { hour12: false })}
                 </span>
               </div>
-            </div>
-          )}
-          {latestPoint && (
-            <div className="latest-kpi">
-              <span className="latest-label">Latest</span>
-              {isContinuousSolarView(selectedItem) ? (
-                <>
-                  <div className="latest-kpi-value">
-                    <span className="latest-number">{latestPoint.sinValue?.toFixed(4) ?? '—'}</span>
-                    <span className="latest-unit">sin</span>
-                  </div>
-                  <div className="latest-kpi-value">
-                    <span className="latest-number">{latestPoint.cosValue?.toFixed(4) ?? '—'}</span>
-                    <span className="latest-unit">cos</span>
-                  </div>
-                </>
-              ) : (
-                <div className="latest-kpi-value">
-                  <span className="latest-number">{latestPoint.value?.toFixed(4) ?? '—'}</span>
-                  <span className="latest-unit">{selectedMeta?.unit}</span>
-                </div>
-              )}
-              <span className="latest-time">
-                {new Date(latestPoint.t).toLocaleTimeString('en-US', { hour12: false })}
-              </span>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {error && (

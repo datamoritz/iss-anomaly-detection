@@ -175,6 +175,7 @@ body {
 .features-stats {
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 5px;
 }
 
@@ -270,10 +271,22 @@ body {
   letter-spacing: 0.04em;
 }
 
-/* ── Latest KPI (inline in controls row) ─────────────────── */
+/* ── Right KPI group (baseline + latest) ─────────────────── */
+
+.right-kpi-group {
+  margin-left: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.right-kpi-group .features-stats {
+  align-items: flex-end;
+  border-right: 1px solid var(--border);
+  padding-right: 20px;
+}
 
 .latest-kpi {
-  margin-left: auto;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
