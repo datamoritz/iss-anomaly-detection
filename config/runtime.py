@@ -246,6 +246,41 @@ def ensure_postgres_schema(conn) -> None:
             )
             """
         )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS injection_jobs (
+                id BIGSERIAL PRIMARY KEY,
+                job_id TEXT NOT NULL UNIQUE,
+                prototype_id TEXT NOT NULL,
+                item_id TEXT NOT NULL,
+                severity DOUBLE PRECISION NOT NULL,
+                time_scale DOUBLE PRECISION NOT NULL,
+                recenter BOOLEAN NOT NULL DEFAULT TRUE,
+                status TEXT NOT NULL,
+                requested_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                started_at_utc TIMESTAMPTZ,
+                completed_at_utc TIMESTAMPTZ,
+                failed_at_utc TIMESTAMPTZ,
+                points_planned INTEGER,
+                points_emitted INTEGER NOT NULL DEFAULT 0,
+                requested_by_source TEXT NOT NULL DEFAULT 'api',
+                feature_snapshot_json TEXT,
+                error_message TEXT
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_injection_jobs_status_requested
+            ON injection_jobs (status, requested_at_utc DESC)
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_injection_jobs_item_requested
+            ON injection_jobs (item_id, requested_at_utc DESC)
+            """
+        )
     conn.commit()
 
 

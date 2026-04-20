@@ -119,6 +119,7 @@ Current endpoints:
 - `GET /api/v1/telemetry/latest/{item_id}`
 - `GET /api/v1/telemetry/recent/{item_id}`
 - `GET /api/v1/telemetry/history/{item_id}`
+- `POST /api/v1/injections`
 - `GET /api/v1/anomalies/recent`
 - `GET /api/v1/anomalies/recent/{item_id}`
 - `POST /api/v1/simulate-anomaly`
@@ -260,6 +261,8 @@ Important container notes:
 - The backend image is built from [Dockerfile.backend](/Users/moritzknodler/Documents/00_Lectures/0_Spring%202026/Datacenters/Project/Code/Dockerfile.backend).
 - App containers mount [data](/Users/moritzknodler/Documents/00_Lectures/0_Spring%202026/Datacenters/Project/Code/data) at `/app/data`.
 - Kafka uses `localhost:9092` for host access and `kafka:19092` for container-to-container access.
+- `KAFKA_INJECTION_TOPIC` defaults to `injection.jobs`.
+- `PROTOTYPE_LIBRARY_DIR` defaults to `data/anomaly_prototypes/smap_final9_v01`.
 - Set `CORS_ALLOW_ORIGINS` in `.env` to include your future Vercel frontend domain.
 - `COLLECTOR_DIAGNOSTICS_PATH` defaults to `data/diagnostics/collector_gaps.jsonl`.
 - `APP_INGEST_DIAGNOSTICS_PATH` defaults to `data/diagnostics/ingest_gaps.jsonl`.

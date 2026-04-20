@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
     KAFKA_TELEMETRY_TOPIC: str = "telemetry.raw"
     KAFKA_ANOMALY_TOPIC: str = "anomaly.events"
+    KAFKA_INJECTION_TOPIC: str = "injection.jobs"
     KAFKA_CONSUMER_GROUP: str = "iss-worker"
     KAFKA_NOTIFICATION_CONSUMER_GROUP: str = "iss-notifications"
 
@@ -45,6 +46,7 @@ class Settings(BaseSettings):
     DATA_ROOT: str = "data"
     COLLECTOR_RAW_ROOT: str = "data/raw"
     COLLECTOR_MANIFEST_PATH: str = "data/manifest.json"
+    PROTOTYPE_LIBRARY_DIR: str = "data/anomaly_prototypes/smap_final9_v01"
     COLLECTOR_DIAGNOSTICS_PATH: str = "data/diagnostics/collector_gaps.jsonl"
     COLLECTOR_HEARTBEAT_WARN_SECONDS: int = 15
     COLLECTOR_HEARTBEAT_RECONNECT_SECONDS: int = 45

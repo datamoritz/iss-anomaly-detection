@@ -30,6 +30,28 @@ class FeatureState(BaseModel):
     source: str
 
 
+class InjectionJobCreateRequest(BaseModel):
+    prototype_id: str
+    item_id: str
+    severity: float = 1.0
+    time_scale: float = 1.0
+    recenter: bool = True
+
+
+class InjectionJobResponse(BaseModel):
+    ok: bool
+    message: str
+    job_id: str
+    status: str
+    prototype_id: str
+    item_id: str
+    severity: float
+    time_scale: float
+    recenter: bool
+    points_planned: int
+    feature_snapshot: dict | None = None
+
+
 class AnomalyEvent(BaseModel):
     detected_at_utc: str
     item: str
