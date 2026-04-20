@@ -1,5 +1,6 @@
 import json
 import signal
+import statistics
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -33,6 +34,7 @@ KAFKA_BOOTSTRAP_SERVERS = settings.KAFKA_BOOTSTRAP_SERVERS
 TELEMETRY_TOPIC = settings.KAFKA_TELEMETRY_TOPIC
 ANOMALY_TOPIC = settings.KAFKA_ANOMALY_TOPIC
 REDIS_RECENT_HISTORY_LIMIT = settings.REDIS_RECENT_HISTORY_LIMIT
+REDIS_FEATURE_WINDOW_SIZE = settings.REDIS_FEATURE_WINDOW_SIZE
 WORKER_STATUS_SERVICE_NAME = "worker_redis_cache"
 
 running = True
@@ -96,10 +98,89 @@ def append_recent_history(r: redis.Redis, event: dict[str, Any]) -> None:
     pipe.execute()
 
 
+def append_normal_feature_history(r: redis.Redis, event: dict[str, Any]) -> None:
+    item = event["item"]
+    history_key = f"normal_history:{item}"
+    history_entry = {
+        "item": item,
+        "value": event.get("value_numeric"),
+        "timestamp_utc": event["received_at_utc"],
+        "source": event["source"],
+    }
+    pipe = r.pipeline()
+    pipe.lpush(history_key, json.dumps(history_entry))
+    pipe.ltrim(history_key, 0, REDIS_FEATURE_WINDOW_SIZE - 1)
+    pipe.execute()
+
+
+def _load_normal_history(r: redis.Redis, item: str) -> list[dict[str, Any]]:
+    raw_entries = r.lrange(f"normal_history:{item}", 0, REDIS_FEATURE_WINDOW_SIZE - 1)
+    return [json.loads(raw) for raw in reversed(raw_entries)]
+
+
+def _compute_feature_state(item: str, history: list[dict[str, Any]]) -> dict[str, Any]:
+    values = [entry["value"] for entry in history if entry.get("value") is not None]
+    timestamps = []
+    for entry in history:
+        timestamp = entry.get("timestamp_utc")
+        if not timestamp:
+            continue
+        try:
+            timestamps.append(datetime.fromisoformat(timestamp))
+        except ValueError:
+            continue
+
+    delta_seconds = [
+        (current - previous).total_seconds()
+        for previous, current in zip(timestamps, timestamps[1:])
+        if current >= previous
+    ]
+
+    mean_value = statistics.fmean(values) if values else None
+    std_value = statistics.stdev(values) if len(values) >= 2 else 0.0 if values else None
+    median_delta_seconds = (
+        statistics.median(delta_seconds) if delta_seconds else None
+    )
+
+    return {
+        "item": item,
+        "window_size": len(history),
+        "value_count": len(values),
+        "baseline_mean": mean_value,
+        "baseline_std": std_value,
+        "median_delta_t_seconds": median_delta_seconds,
+        "updated_at_utc": now_utc_iso(),
+        "source": "normal_only_feature_window",
+    }
+
+
+def update_feature_state(r: redis.Redis, event: dict[str, Any]) -> None:
+    item = event["item"]
+    append_normal_feature_history(r, event)
+    history = _load_normal_history(r, item)
+    feature_state = _compute_feature_state(item, history)
+    r.hset("feature_state", item, json.dumps(feature_state))
+
+
 def should_update_latest_state(event: dict[str, Any]) -> bool:
     # Keep Redis latest_state reserved for real telemetry so simulation
     # does not leave the chart stuck until the next collector sample arrives.
     return event.get("source") != "simulation_api"
+
+
+def should_update_feature_state(
+    event: dict[str, Any],
+    *,
+    threshold_anomaly: Optional[dict[str, Any]],
+    jump_anomaly: Optional[dict[str, Any]],
+) -> bool:
+    if event.get("source") == "simulation_api":
+        return False
+    if event.get("value_numeric") is None:
+        return False
+    if threshold_anomaly is not None or jump_anomaly is not None:
+        return False
+    return True
 
 
 def reconnect_redis_client(previous_client: redis.Redis | None) -> redis.Redis:
@@ -422,6 +503,16 @@ def main() -> None:
                         producer.send(ANOMALY_TOPIC, key=item, value=jump_anomaly)
                         anomaly_count += 1
                         print(f"[anomaly] sudden jump: {jump_anomaly}")
+
+                    if should_update_feature_state(
+                        event,
+                        threshold_anomaly=threshold_anomaly,
+                        jump_anomaly=jump_anomaly,
+                    ):
+                        try:
+                            update_feature_state(redis_client, event)
+                        except redis.exceptions.RedisError as exc:
+                            print(f"[redis] feature state update failed: {exc}")
 
                     previous_values[item] = value_numeric
                     processed_count += 1

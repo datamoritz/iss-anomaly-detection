@@ -19,6 +19,17 @@ class ContinuousAnglePoint(BaseModel):
     source: str
 
 
+class FeatureState(BaseModel):
+    item: str
+    window_size: int
+    value_count: int
+    baseline_mean: float | None
+    baseline_std: float | None
+    median_delta_t_seconds: float | None
+    updated_at_utc: str
+    source: str
+
+
 class AnomalyEvent(BaseModel):
     detected_at_utc: str
     item: str

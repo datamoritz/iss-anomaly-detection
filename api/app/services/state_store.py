@@ -7,7 +7,7 @@ from config.runtime import (
     derive_angle_features,
 )
 
-from ..schemas import TelemetryPoint, AnomalyEvent, ContinuousAnglePoint
+from ..schemas import TelemetryPoint, AnomalyEvent, ContinuousAnglePoint, FeatureState
 
 
 def _redis_event_to_telemetry_point(raw_json: str) -> TelemetryPoint:
@@ -36,6 +36,20 @@ def _row_to_telemetry_point(row) -> TelemetryPoint:
         value=row[1],
         timestamp_utc=row[2].isoformat(),
         source=row[3],
+    )
+
+
+def _redis_feature_state_to_model(raw_json: str) -> FeatureState:
+    payload = json.loads(raw_json)
+    return FeatureState(
+        item=payload["item"],
+        window_size=payload["window_size"],
+        value_count=payload["value_count"],
+        baseline_mean=payload.get("baseline_mean"),
+        baseline_std=payload.get("baseline_std"),
+        median_delta_t_seconds=payload.get("median_delta_t_seconds"),
+        updated_at_utc=payload["updated_at_utc"],
+        source=payload["source"],
     )
 
 
@@ -112,6 +126,14 @@ def get_telemetry_history_by_item(item_id: str, from_utc, to_utc, limit: int = 1
         return [_row_to_telemetry_point(row) for row in rows]
     finally:
         conn.close()
+
+
+def get_feature_state_by_item(item_id: str):
+    r = create_redis_client()
+    raw = r.hget("feature_state", item_id)
+    if raw is None:
+        return None
+    return _redis_feature_state_to_model(raw)
 
 
 def get_latest_continuous_angle():

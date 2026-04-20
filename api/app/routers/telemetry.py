@@ -3,9 +3,10 @@ from typing import List
 
 from fastapi import APIRouter, HTTPException, Query
 
-from ..schemas import ContinuousAnglePoint, TelemetryPoint
+from ..schemas import ContinuousAnglePoint, FeatureState, TelemetryPoint
 from ..services.state_store import (
     get_continuous_angle_history,
+    get_feature_state_by_item,
     get_latest_telemetry,
     get_latest_continuous_angle,
     get_latest_telemetry_by_item,
@@ -85,3 +86,14 @@ def telemetry_history_by_item(
         to_utc,
         limit=limit,
     )
+
+
+@router.get("/telemetry/features/{item_id}", response_model=FeatureState)
+def telemetry_feature_state_by_item(item_id: str):
+    feature_state = get_feature_state_by_item(item_id)
+    if feature_state is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Feature state for telemetry item '{item_id}' not found",
+        )
+    return feature_state

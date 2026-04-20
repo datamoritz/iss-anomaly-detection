@@ -135,6 +135,8 @@ Notes:
 - CORS middleware is enabled from settings.
 - Latest telemetry is read from Redis hash `latest_state`.
 - Redis also stores bounded recent history lists under `recent_history:<item_id>`.
+- Redis also stores bounded normal-only history lists under `normal_history:<item_id>`
+  and rolling feature stats in hash `feature_state`.
 - Postgres stores durable telemetry history for this app in `telemetry_history`.
 - Postgres also stores email subscriptions and notification logs.
 - Verification emails are sent by the API; anomaly alert emails are sent by the separate notification consumer.
@@ -265,6 +267,7 @@ Important container notes:
 - `COLLECTOR_HEARTBEAT_RECONNECT_SECONDS` and `APP_INGEST_HEARTBEAT_RECONNECT_SECONDS` default to `45`.
 - `COLLECTOR_GAP_THRESHOLD_SECONDS` and `APP_INGEST_GAP_THRESHOLD_SECONDS` default to `60`.
 - `REDIS_RECENT_HISTORY_LIMIT` defaults to `100`.
+- `REDIS_FEATURE_WINDOW_SIZE` defaults to `100`.
 - `TELEMETRY_RETENTION_DAYS` defaults to `28`.
 - `WORKER_REDIS_RETRY_MAX_SECONDS` defaults to `60`.
 - `WORKER_REDIS_HEALTH_DEGRADED_AFTER_SECONDS` defaults to `300`.
