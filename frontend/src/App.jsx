@@ -23,6 +23,7 @@ const MAX_POINTS = 120  // ~4 minutes at 2s polling
 const POLL_INTERVAL_MS = 2000
 const SIMULATION_VISIBLE_MS = 1500
 const SOLAR_JOINT_ITEM = 'S0000004'
+const CABIN_TEMP_ITEM  = 'USLAB000059'
 const SOLAR_JOINT_CONTINUOUS_ITEM = 'S0000004__continuous'
 const HISTORY_LIMITS = {
   '1h': 5000,
@@ -426,6 +427,8 @@ export default function App() {
             series={chartSeries}
             showAnomalyDots={!isContinuousSolarView(selectedItem)}
             jumpBreakThreshold={selectedItem === SOLAR_JOINT_ITEM ? 180 : null}
+            showSmoothedToggle={selectedItem === CABIN_TEMP_ITEM}
+            timeRange={timeRange}
           />
         </div>
 

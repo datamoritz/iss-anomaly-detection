@@ -239,6 +239,54 @@ body {
   position: relative;
 }
 
+.chart-smooth-toggle {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-smooth-pills {
+  display: flex;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.chart-smooth-pill {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.chart-smooth-pill:hover {
+  color: var(--text);
+}
+
+.chart-smooth-pill--active {
+  background: var(--border);
+  color: var(--accent);
+}
+
+.chart-smooth-hint {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
 .chart-reset-y {
   position: absolute;
   top: 4px;

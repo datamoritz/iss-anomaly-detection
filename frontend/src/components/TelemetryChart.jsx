@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { anomalyColor } from '../utils/anomaly'
+import { buildSmoothedBuffer } from '../utils/smoothing'
 import {
   LineChart,
   Line,
@@ -74,8 +75,15 @@ export default function TelemetryChart({
   series = [{ key: 'value', label: 'value', color: '#22d3ee' }],
   showAnomalyDots = true,
   jumpBreakThreshold = null,
+  showSmoothedToggle = false,
+  timeRange = 'recent',
 }) {
-  const chartData = buildChartData(buffer, series, GAP_BREAK_MS, jumpBreakThreshold)
+  const [smoothed, setSmoothed] = useState(false)
+  const showToggle = showSmoothedToggle && timeRange !== 'recent'
+  const displayBuffer = showToggle && smoothed
+    ? buildSmoothedBuffer(buffer, timeRange)
+    : buffer
+  const chartData = buildChartData(displayBuffer, series, GAP_BREAK_MS, jumpBreakThreshold)
   const [yDomain, setYDomain] = useState(null)
   const [brushStart, setBrushStart] = useState(0)
   const [brushEnd, setBrushEnd] = useState(Math.max(0, chartData.length - 1))
@@ -160,6 +168,21 @@ export default function TelemetryChart({
 
   return (
     <div className="chart-inner" ref={containerRef}>
+      {showToggle && (
+        <div className="chart-smooth-toggle">
+          <div className="chart-smooth-pills">
+            <button
+              className={`chart-smooth-pill ${!smoothed ? 'chart-smooth-pill--active' : ''}`}
+              onClick={() => setSmoothed(false)}
+            >RAW</button>
+            <button
+              className={`chart-smooth-pill ${smoothed ? 'chart-smooth-pill--active' : ''}`}
+              onClick={() => setSmoothed(true)}
+            >SMOOTHED</button>
+          </div>
+          <span className="chart-smooth-hint">Visual smoothing only</span>
+        </div>
+      )}
       {yDomain && (
         <button className="chart-reset-y" onClick={() => setYDomain(null)}>
           Reset Y
