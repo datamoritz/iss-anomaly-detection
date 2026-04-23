@@ -1,9 +1,11 @@
+// Pass 1: median kills quantization spikes. Pass 2: EMA rounds off residual noise.
 const SMOOTH_CONFIG = {
-  '1h':  { stepMs: 5_000,  maxGapMs: 90_000,  smoother: 'ema',    alpha: 0.3 },
-  '6h':  { stepMs: 30_000, maxGapMs: 120_000, smoother: 'median', window: 3  },
-  '24h': { stepMs: 60_000, maxGapMs: 300_000, smoother: 'median', window: 3  },
+  '1h':  { stepMs: 5_000,  maxGapMs: 90_000,  medianWindow: 5,  emaAlpha: 0.15 },
+  '6h':  { stepMs: 30_000, maxGapMs: 120_000, medianWindow: 7,  emaAlpha: 0.12 },
+  '24h': { stepMs: 60_000, maxGapMs: 300_000, medianWindow: 11, emaAlpha: 0.10 },
 }
 
+// Linear interpolation onto a regular grid; real gaps (> maxGapMs) become null breaks.
 function resample(rawBuffer, stepMs, maxGapMs) {
   if (rawBuffer.length < 2) return rawBuffer
 
@@ -56,14 +58,49 @@ function applyRollingMedian(points, winSize) {
   })
 }
 
+// Two-pass: median first, then EMA.
 export function buildSmoothedBuffer(rawBuffer, timeRange) {
   if (rawBuffer.length < 2 || timeRange === 'recent') return rawBuffer
 
   const cfg = SMOOTH_CONFIG[timeRange]
   if (!cfg) return rawBuffer
 
-  const resampled = resample(rawBuffer, cfg.stepMs, cfg.maxGapMs)
-  return cfg.smoother === 'ema'
-    ? applyEMA(resampled, cfg.alpha)
-    : applyRollingMedian(resampled, cfg.window)
+  const resampled    = resample(rawBuffer, cfg.stepMs, cfg.maxGapMs)
+  const afterMedian  = applyRollingMedian(resampled, cfg.medianWindow)
+  return applyEMA(afterMedian, cfg.emaAlpha)
+}
+
+// Adds bridgeValue to each point: non-null only inside null-gap runs,
+// plus the two boundary points on either side (so the dashed line connects).
+export function buildConnectedData(smoothedBuffer) {
+  const result = smoothedBuffer.map((pt) => ({ ...pt, bridgeValue: null }))
+
+  let i = 0
+  while (i < result.length) {
+    if (result[i].value !== null) { i++; continue }
+
+    const gapStart = i
+    while (i < result.length && result[i].value === null) i++
+    const gapEnd = i
+
+    const leftIdx  = gapStart - 1
+    const rightIdx = gapEnd
+
+    if (leftIdx < 0 || rightIdx >= result.length) continue
+
+    const leftPt  = result[leftIdx]
+    const rightPt = result[rightIdx]
+
+    // Overlap the boundary points so the dashed line connects to the solid line
+    result[leftIdx].bridgeValue  = leftPt.value
+    result[rightIdx].bridgeValue = rightPt.value
+
+    const totalTime = rightPt.t - leftPt.t
+    for (let k = gapStart; k < gapEnd; k++) {
+      const frac = (result[k].t - leftPt.t) / totalTime
+      result[k].bridgeValue = leftPt.value + frac * (rightPt.value - leftPt.value)
+    }
+  }
+
+  return result
 }

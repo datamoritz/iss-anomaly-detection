@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { anomalyColor } from '../utils/anomaly'
-import { buildSmoothedBuffer } from '../utils/smoothing'
+import { buildSmoothedBuffer, buildConnectedData } from '../utils/smoothing'
 import {
   LineChart,
   Line,
@@ -78,12 +78,16 @@ export default function TelemetryChart({
   showSmoothedToggle = false,
   timeRange = 'recent',
 }) {
-  const [smoothed, setSmoothed] = useState(false)
-  const showToggle = showSmoothedToggle && timeRange !== 'recent'
-  const displayBuffer = showToggle && smoothed
-    ? buildSmoothedBuffer(buffer, timeRange)
-    : buffer
-  const chartData = buildChartData(displayBuffer, series, GAP_BREAK_MS, jumpBreakThreshold)
+  const [displayMode, setDisplayMode] = useState('raw')
+  const showToggle  = showSmoothedToggle && timeRange !== 'recent'
+  const activeMode  = showToggle ? displayMode : 'raw'
+
+  const smoothedBuf   = activeMode !== 'raw' ? buildSmoothedBuffer(buffer, timeRange) : null
+  const connectedBuf  = activeMode === 'connected' && smoothedBuf
+    ? buildConnectedData(smoothedBuf)
+    : null
+  const displayBuffer = connectedBuf ?? smoothedBuf ?? buffer
+  const chartData     = buildChartData(displayBuffer, series, GAP_BREAK_MS, jumpBreakThreshold)
   const [yDomain, setYDomain] = useState(null)
   const [brushStart, setBrushStart] = useState(0)
   const [brushEnd, setBrushEnd] = useState(Math.max(0, chartData.length - 1))
@@ -171,14 +175,13 @@ export default function TelemetryChart({
       {showToggle && (
         <div className="chart-smooth-toggle">
           <div className="chart-smooth-pills">
-            <button
-              className={`chart-smooth-pill ${!smoothed ? 'chart-smooth-pill--active' : ''}`}
-              onClick={() => setSmoothed(false)}
-            >RAW</button>
-            <button
-              className={`chart-smooth-pill ${smoothed ? 'chart-smooth-pill--active' : ''}`}
-              onClick={() => setSmoothed(true)}
-            >SMOOTHED</button>
+            {['raw', 'smoothed', 'connected'].map((mode) => (
+              <button
+                key={mode}
+                className={`chart-smooth-pill ${displayMode === mode ? 'chart-smooth-pill--active' : ''}`}
+                onClick={() => setDisplayMode(mode)}
+              >{mode.toUpperCase()}</button>
+            ))}
           </div>
           <span className="chart-smooth-hint">Visual smoothing only</span>
         </div>
@@ -223,6 +226,20 @@ export default function TelemetryChart({
               isAnimationActive={false}
             />
           ))}
+          {connectedBuf && (
+            <Line
+              type="monotone"
+              dataKey="bridgeValue"
+              stroke={series[0]?.color ?? '#22d3ee'}
+              strokeWidth={1.5}
+              strokeDasharray="6 4"
+              strokeOpacity={0.4}
+              dot={false}
+              isAnimationActive={false}
+              connectNulls={false}
+              legendType="none"
+            />
+          )}
           {visibleAnomalies.map((a, i) => (
             <ReferenceLine
               key={`vline-${i}`}
