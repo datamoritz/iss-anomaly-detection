@@ -1,4 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const WS_BASE = API_BASE.replace(/^http/, 'ws')
 
 export async function fetchItems() {
   const res = await fetch(`${API_BASE}/api/v1/items`)
@@ -93,4 +94,8 @@ export async function createSubscription(payload) {
   })
   if (!res.ok) throw new Error(`Failed to create subscription (${res.status})`)
   return res.json()
+}
+
+export function createTelemetryWebSocket() {
+  return new WebSocket(`${WS_BASE}/ws/telemetry`)
 }

@@ -12,6 +12,7 @@ import {
   simulateAnomaly,
   postInjection,
   createSubscription,
+  createTelemetryWebSocket,
 } from './api/client'
 import ParameterSelector from './components/ParameterSelector'
 import TelemetryChart from './components/TelemetryChart'
@@ -20,7 +21,6 @@ import SimulationPanel from './components/SimulationPanel'
 import SubscriptionPanel from './components/SubscriptionPanel'
 
 const MAX_POINTS = 120  // ~4 minutes at 2s polling
-const POLL_INTERVAL_MS = 2000
 const SIMULATION_VISIBLE_MS = 1500
 const SOLAR_JOINT_ITEM = 'S0000004'
 const CABIN_TEMP_ITEM  = 'USLAB000059'
@@ -101,6 +101,25 @@ function getXDomain(range) {
   return [now - historyHours(range) * 60 * 60 * 1000, now]
 }
 
+function getWindowMs(range) {
+  if (range === 'recent') return null
+  return historyHours(range) * 60 * 60 * 1000
+}
+
+function appendPointForRange(prev, point, range) {
+  const lastPoint = prev[prev.length - 1]
+  if (lastPoint?.timestamp_utc === point.timestamp_utc) return prev
+  if (lastPoint?.t != null && point.t <= lastPoint.t) return prev
+
+  if (range === 'recent') {
+    return [...prev, point].slice(-MAX_POINTS)
+  }
+
+  const windowMs = getWindowMs(range)
+  const cutoff = point.t - windowMs
+  return [...prev.filter((entry) => entry.t >= cutoff), point]
+}
+
 export default function App() {
   const [items, setItems] = useState([])
   const [selectedItem, setSelectedItem] = useState(null)
@@ -112,9 +131,12 @@ export default function App() {
   const [simStatus, setSimStatus] = useState(null)
   const [subscriptionStatus, setSubscriptionStatus] = useState(null)
   const [error, setError] = useState(null)
-  const telemetryIntervalRef = useRef(null)
   const anomalyIntervalRef = useRef(null)
   const simulationResetRef = useRef(null)
+  const telemetrySocketRef = useRef(null)
+  const reconnectTimeoutRef = useRef(null)
+  const selectedItemRef = useRef(null)
+  const timeRangeRef = useRef('recent')
 
   // Load item metadata once on mount
   useEffect(() => {
@@ -130,6 +152,14 @@ export default function App() {
   useEffect(() => {
     return () => clearTimeout(simulationResetRef.current)
   }, [])
+
+  useEffect(() => {
+    selectedItemRef.current = selectedItem
+  }, [selectedItem])
+
+  useEffect(() => {
+    timeRangeRef.current = timeRange
+  }, [timeRange])
 
   // Load recent/history data for the selected range.
   useEffect(() => {
@@ -172,46 +202,96 @@ export default function App() {
     loadInitialBuffer()
   }, [selectedItem, timeRange])
 
-  // Always poll the canonical latest endpoint so the KPI never depends on
-  // whichever historical slice is currently rendered in the chart.
+  // Load the canonical latest point on parameter change so the KPI is correct
+  // even before the live WebSocket has delivered the next update.
   useEffect(() => {
     if (!selectedItem) return
 
     const backendItemId = getBackendItemId(selectedItem)
-    clearInterval(telemetryIntervalRef.current)
-
-    const pollLatest = async () => {
+    setLatestTelemetry(null)
+    const loadLatest = async () => {
       try {
         const point = isContinuousSolarView(selectedItem)
           ? await fetchLatestContinuousAngle()
           : await fetchLatest(backendItemId)
-        const chartPoint = toChartPoint(point, selectedItem)
-        setLatestTelemetry(chartPoint)
-
-        if (timeRange !== 'recent') {
-          setError(null)
-          return
-        }
-
-        setBuffer((prev) => {
-          if (prev[prev.length - 1]?.timestamp_utc === point.timestamp_utc) {
-            return prev
-          }
-
-          const next = [...prev, chartPoint]
-          return next.slice(-MAX_POINTS)
-        })
+        setLatestTelemetry(toChartPoint(point, selectedItem))
         setError(null)
       } catch (e) {
         setError(e.message)
       }
     }
 
-    pollLatest()
-    telemetryIntervalRef.current = setInterval(pollLatest, POLL_INTERVAL_MS)
+    loadLatest()
+  }, [selectedItem])
 
-    return () => clearInterval(telemetryIntervalRef.current)
-  }, [selectedItem, timeRange])
+  // Live telemetry stream: bootstrap via HTTP, then keep every view moving
+  // forward with WebSocket updates from the backend.
+  useEffect(() => {
+    let cancelled = false
+
+    const connect = () => {
+      if (cancelled) return
+
+      const socket = createTelemetryWebSocket()
+      telemetrySocketRef.current = socket
+
+      socket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data)
+          const activeItem = selectedItemRef.current
+          const activeRange = timeRangeRef.current
+
+          if (!activeItem) return
+
+          const backendItemId = getBackendItemId(activeItem)
+          if (payload.item !== backendItemId) return
+
+          const chartPoint = toChartPoint(
+            isContinuousSolarView(activeItem)
+              ? {
+                  angle_deg: payload.value_numeric,
+                  angle_rad: payload.value_numeric != null ? (payload.value_numeric * Math.PI) / 180 : null,
+                  angle_sin: payload.value_numeric != null ? Math.sin((payload.value_numeric * Math.PI) / 180) : null,
+                  angle_cos: payload.value_numeric != null ? Math.cos((payload.value_numeric * Math.PI) / 180) : null,
+                  timestamp_utc: payload.received_at_utc,
+                  source: payload.source,
+                }
+              : {
+                  value: payload.value_numeric,
+                  timestamp_utc: payload.received_at_utc,
+                  source: payload.source,
+                },
+            activeItem,
+          )
+
+          setLatestTelemetry(chartPoint)
+          setBuffer((prev) => appendPointForRange(prev, chartPoint, activeRange))
+        } catch {
+          // ignore malformed live messages
+        }
+      }
+
+      socket.onclose = () => {
+        if (telemetrySocketRef.current === socket) {
+          telemetrySocketRef.current = null
+        }
+        if (!cancelled) {
+          reconnectTimeoutRef.current = setTimeout(connect, 2000)
+        }
+      }
+    }
+
+    connect()
+
+    return () => {
+      cancelled = true
+      clearTimeout(reconnectTimeoutRef.current)
+      if (telemetrySocketRef.current) {
+        telemetrySocketRef.current.close()
+        telemetrySocketRef.current = null
+      }
+    }
+  }, [])
 
   // Features fetch — once per parameter selection
   useEffect(() => {

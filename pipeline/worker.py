@@ -33,6 +33,7 @@ JUMP_RULES = rules["jump_rules"]
 KAFKA_BOOTSTRAP_SERVERS = settings.KAFKA_BOOTSTRAP_SERVERS
 TELEMETRY_TOPIC = settings.KAFKA_TELEMETRY_TOPIC
 ANOMALY_TOPIC = settings.KAFKA_ANOMALY_TOPIC
+REDIS_TELEMETRY_LIVE_CHANNEL = settings.REDIS_TELEMETRY_LIVE_CHANNEL
 REDIS_RECENT_HISTORY_LIMIT = settings.REDIS_RECENT_HISTORY_LIMIT
 REDIS_FEATURE_WINDOW_SIZE = settings.REDIS_FEATURE_WINDOW_SIZE
 WORKER_STATUS_SERVICE_NAME = "worker_redis_cache"
@@ -96,6 +97,10 @@ def append_recent_history(r: redis.Redis, event: dict[str, Any]) -> None:
     pipe.lpush(history_key, json.dumps(history_entry))
     pipe.ltrim(history_key, 0, REDIS_RECENT_HISTORY_LIMIT - 1)
     pipe.execute()
+
+
+def publish_live_telemetry(r: redis.Redis, event: dict[str, Any]) -> None:
+    r.publish(REDIS_TELEMETRY_LIVE_CHANNEL, json.dumps(event))
 
 
 def append_normal_feature_history(r: redis.Redis, event: dict[str, Any]) -> None:
@@ -242,6 +247,7 @@ def write_event_to_redis(
             append_recent_history(redis_client, event)
             if should_write_latest:
                 save_latest_state(redis_client, event)
+            publish_live_telemetry(redis_client, event)
 
             if state.is_degraded:
                 print("[redis] cache writes recovered")

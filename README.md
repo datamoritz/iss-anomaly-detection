@@ -264,6 +264,7 @@ Important container notes:
 - Kafka uses `localhost:9092` for host access and `kafka:19092` for container-to-container access.
 - `KAFKA_INJECTION_TOPIC` defaults to `injection.jobs`.
 - `KAFKA_INJECTION_CONSUMER_GROUP` defaults to `iss-injection-worker`.
+- `REDIS_TELEMETRY_LIVE_CHANNEL` defaults to `telemetry:live`.
 - `PROTOTYPE_LIBRARY_DIR` defaults to `data/anomaly_prototypes/smap_final9_v01`.
 - `INJECTION_MAX_POINTS` defaults to `500`.
 - Set `CORS_ALLOW_ORIGINS` in `.env` to include your future Vercel frontend domain.
@@ -291,4 +292,5 @@ Important container notes:
 - The raw collector is separate from the Kafka/Redis/Postgres/API path.
 - Your existing hourly JSONL collection for neural-net work can remain separate from the app pipeline.
 - The frontend now preloads recent telemetry from Redis and can request historical telemetry from Postgres.
+- The frontend now bootstraps history over HTTP and receives live telemetry updates over FastAPI WebSockets at `/ws/telemetry`.
 - For longer-running server use, prefer `tmux`, `systemd`, or later K8s pods.

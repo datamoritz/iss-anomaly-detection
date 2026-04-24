@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     DATA_ROOT: str = "data"
     COLLECTOR_RAW_ROOT: str = "data/raw"
     COLLECTOR_MANIFEST_PATH: str = "data/manifest.json"
+    REDIS_TELEMETRY_LIVE_CHANNEL: str = "telemetry:live"
     PROTOTYPE_LIBRARY_DIR: str = "data/anomaly_prototypes/smap_final9_v01"
     COLLECTOR_DIAGNOSTICS_PATH: str = "data/diagnostics/collector_gaps.jsonl"
     COLLECTOR_HEARTBEAT_WARN_SECONDS: int = 15
