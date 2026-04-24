@@ -77,6 +77,7 @@ export default function TelemetryChart({
   jumpBreakThreshold = null,
   showSmoothedOption = false,
   timeRange = 'recent',
+  brushResetKey = '',
 }) {
   const [displayMode, setDisplayMode] = useState('raw')
   const showToggle = timeRange !== 'recent'
@@ -98,10 +99,6 @@ export default function TelemetryChart({
     : null
   const chartData     = connectedBuf ?? rawChartData
   const [yDomain, setYDomain] = useState(null)
-  const [brushStart, setBrushStart] = useState(0)
-  const [brushEnd, setBrushEnd] = useState(Math.max(0, chartData.length - 1))
-  const pinnedToEnd = useRef(true)
-  const prevLengthRef = useRef(chartData.length)
   const containerRef = useRef(null)
   const yDomainRef = useRef(yDomain)
   const chartDataRef = useRef(chartData)
@@ -109,27 +106,10 @@ export default function TelemetryChart({
   useEffect(() => { yDomainRef.current = yDomain }, [yDomain])
   useEffect(() => { chartDataRef.current = chartData }, [chartData])
 
-  // Manage brush indices as buffer grows or resets
-  useEffect(() => {
-    const len = chartData.length
-    const prevLen = prevLengthRef.current
-
-    if (len === 0) {
-      pinnedToEnd.current = true
-    } else if (prevLen === 0) {
-      setBrushStart(0)
-      setBrushEnd(len - 1)
-    } else if (pinnedToEnd.current && len > prevLen) {
-      setBrushEnd(len - 1)
-    }
-
-    prevLengthRef.current = len
-  }, [chartData.length])
-
   // Reset Y domain when buffer is cleared (param/range switch)
   useEffect(() => {
-    if (chartData.length === 0) setYDomain(null)
-  }, [chartData.length])
+    if (buffer.length === 0) setYDomain(null)
+  }, [buffer.length])
 
   // Wheel handler for vertical zoom — registered with passive:false so preventDefault works
   useEffect(() => {
@@ -271,19 +251,13 @@ export default function TelemetryChart({
           ))}
           {showBrush && (
             <Brush
+              key={brushResetKey}
               dataKey="t"
-              startIndex={brushStart}
-              endIndex={Math.min(brushEnd, chartData.length - 1)}
               height={28}
               stroke="#1a2030"
               fill="#080b10"
               travellerWidth={6}
               tickFormatter={formatTime}
-              onChange={({ startIndex, endIndex }) => {
-                setBrushStart(startIndex)
-                setBrushEnd(endIndex)
-                pinnedToEnd.current = endIndex >= chartData.length - 1
-              }}
             />
           )}
         </LineChart>

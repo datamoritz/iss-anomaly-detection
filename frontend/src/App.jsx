@@ -509,6 +509,7 @@ export default function App() {
             jumpBreakThreshold={selectedItem === SOLAR_JOINT_ITEM ? 180 : null}
             showSmoothedOption={selectedItem === CABIN_TEMP_ITEM}
             timeRange={timeRange}
+            brushResetKey={`${selectedItem}-${timeRange}`}
           />
         </div>
 
