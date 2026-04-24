@@ -138,6 +138,9 @@ Notes:
 - Redis also stores bounded recent history lists under `recent_history:<item_id>`.
 - Redis also stores bounded normal-only history lists under `normal_history:<item_id>`
   and rolling feature stats in hash `feature_state`.
+- The worker suppresses real anomaly detection for a short configurable cooldown
+  after injected telemetry for the same item so rebound samples are not logged
+  as separate "real" anomalies.
 - Postgres stores durable telemetry history for this app in `telemetry_history`.
 - Postgres also stores email subscriptions and notification logs.
 - Verification emails are sent by the API; anomaly alert emails are sent by the separate notification consumer.

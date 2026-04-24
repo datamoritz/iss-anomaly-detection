@@ -190,6 +190,10 @@ def should_update_feature_state(
     return True
 
 
+def is_injected_event(event: dict[str, Any]) -> bool:
+    return event.get("source") in {"simulation_api", "prototype_injection_worker"}
+
+
 def reconnect_redis_client(previous_client: redis.Redis | None) -> redis.Redis:
     if previous_client is not None:
         try:
@@ -455,6 +459,7 @@ def main() -> None:
     consumer = create_kafka_consumer()
 
     previous_values: dict[str, Optional[float]] = {}
+    suppress_real_anomalies_until: dict[str, float] = {}
     processed_count = 0
     anomaly_count = 0
     last_cleanup_day = None
@@ -479,6 +484,8 @@ def main() -> None:
                     item = event["item"]
                     value_numeric = event.get("value_numeric")
                     trigger_source = event.get("source")
+                    event_is_injected = is_injected_event(event)
+                    now_monotonic = time.monotonic()
 
                     insert_telemetry_history(pg_conn, event)
                     redis_client = write_event_to_redis(
@@ -488,29 +495,51 @@ def main() -> None:
                         pg_conn=pg_conn,
                     )
 
-                    threshold_anomaly = detect_threshold_breach(
-                        item,
-                        value_numeric,
-                        trigger_source,
-                    )
-                    if threshold_anomaly is not None:
-                        insert_anomaly(pg_conn, threshold_anomaly)
-                        producer.send(ANOMALY_TOPIC, key=item, value=threshold_anomaly)
-                        anomaly_count += 1
-                        print(f"[anomaly] threshold breach: {threshold_anomaly}")
+                    if event_is_injected:
+                        suppress_real_anomalies_until[item] = (
+                            now_monotonic
+                            + settings.ANOMALY_POST_INJECTION_COOLDOWN_SECONDS
+                        )
 
-                    previous_value_numeric = previous_values.get(item)
-                    jump_anomaly = detect_sudden_jump(
-                        item,
-                        value_numeric,
-                        previous_value_numeric,
-                        trigger_source,
+                    suppress_real_anomaly = (
+                        not event_is_injected
+                        and now_monotonic < suppress_real_anomalies_until.get(item, 0.0)
                     )
-                    if jump_anomaly is not None:
-                        insert_anomaly(pg_conn, jump_anomaly)
-                        producer.send(ANOMALY_TOPIC, key=item, value=jump_anomaly)
-                        anomaly_count += 1
-                        print(f"[anomaly] sudden jump: {jump_anomaly}")
+
+                    threshold_anomaly = None
+                    jump_anomaly = None
+                    if suppress_real_anomaly:
+                        remaining = (
+                            suppress_real_anomalies_until[item] - now_monotonic
+                        )
+                        print(
+                            "[anomaly] suppressing post-injection detection for "
+                            f"{item} for another {remaining:.1f}s"
+                        )
+                    else:
+                        threshold_anomaly = detect_threshold_breach(
+                            item,
+                            value_numeric,
+                            trigger_source,
+                        )
+                        if threshold_anomaly is not None:
+                            insert_anomaly(pg_conn, threshold_anomaly)
+                            producer.send(ANOMALY_TOPIC, key=item, value=threshold_anomaly)
+                            anomaly_count += 1
+                            print(f"[anomaly] threshold breach: {threshold_anomaly}")
+
+                        previous_value_numeric = previous_values.get(item)
+                        jump_anomaly = detect_sudden_jump(
+                            item,
+                            value_numeric,
+                            previous_value_numeric,
+                            trigger_source,
+                        )
+                        if jump_anomaly is not None:
+                            insert_anomaly(pg_conn, jump_anomaly)
+                            producer.send(ANOMALY_TOPIC, key=item, value=jump_anomaly)
+                            anomaly_count += 1
+                            print(f"[anomaly] sudden jump: {jump_anomaly}")
 
                     if should_update_feature_state(
                         event,
