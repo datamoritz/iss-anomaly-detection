@@ -308,7 +308,7 @@ def build_anomaly_event(
         "details": details,
         "source": "threshold_worker_v1",
         "trigger_source": trigger_source,
-        "is_simulated": trigger_source == "simulation_api",
+        "is_simulated": trigger_source in {"simulation_api", "prototype_injection_worker"},
     }
 
 
