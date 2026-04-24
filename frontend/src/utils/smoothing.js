@@ -70,35 +70,54 @@ export function buildSmoothedBuffer(rawBuffer, timeRange) {
   return applyEMA(afterMedian, cfg.emaAlpha)
 }
 
-// Adds bridgeValue to each point: non-null only inside null-gap runs,
-// plus the two boundary points on either side (so the dashed line connects).
-export function buildConnectedData(smoothedBuffer) {
-  const result = smoothedBuffer.map((pt) => ({ ...pt, bridgeValue: null }))
+// Zero-order hold bridge: holds the last known value flat across each gap,
+// then steps vertically to the next real value at the very last moment.
+// A synthetic hold point is injected 1 ms before each right boundary so
+// Recharts renders a true horizontal→vertical step rather than a diagonal.
+export function buildConnectedData(buffer) {
+  const intermediate = buffer.map((pt) => ({ ...pt, bridgeValue: null }))
 
   let i = 0
-  while (i < result.length) {
-    if (result[i].value !== null) { i++; continue }
+  while (i < intermediate.length) {
+    if (intermediate[i].value !== null) { i++; continue }
 
     const gapStart = i
-    while (i < result.length && result[i].value === null) i++
+    while (i < intermediate.length && intermediate[i].value === null) i++
     const gapEnd = i
 
     const leftIdx  = gapStart - 1
     const rightIdx = gapEnd
 
-    if (leftIdx < 0 || rightIdx >= result.length) continue
+    if (leftIdx < 0 || rightIdx >= intermediate.length) continue
 
-    const leftPt  = result[leftIdx]
-    const rightPt = result[rightIdx]
+    const leftPt  = intermediate[leftIdx]
+    const rightPt = intermediate[rightIdx]
 
-    // Overlap the boundary points so the dashed line connects to the solid line
-    result[leftIdx].bridgeValue  = leftPt.value
-    result[rightIdx].bridgeValue = rightPt.value
-
-    const totalTime = rightPt.t - leftPt.t
+    // Left boundary and all null gap points hold the left value flat
+    intermediate[leftIdx].bridgeValue = leftPt.value
     for (let k = gapStart; k < gapEnd; k++) {
-      const frac = (result[k].t - leftPt.t) / totalTime
-      result[k].bridgeValue = leftPt.value + frac * (rightPt.value - leftPt.value)
+      intermediate[k].bridgeValue = leftPt.value
+    }
+    // Right boundary takes the new value — the step happens here
+    intermediate[rightIdx].bridgeValue = rightPt.value
+  }
+
+  // Second pass: inject a hold point 1 ms before each right-boundary step
+  // so Recharts draws horizontal then vertical rather than a diagonal
+  const result = []
+  for (let j = 0; j < intermediate.length; j++) {
+    const pt   = intermediate[j]
+    const next = intermediate[j + 1]
+    result.push(pt)
+
+    if (
+      pt.value === null &&
+      pt.bridgeValue != null &&
+      next?.value != null &&
+      next.bridgeValue != null &&
+      next.t - pt.t > 1
+    ) {
+      result.push({ t: next.t - 1, value: null, bridgeValue: pt.bridgeValue })
     }
   }
 

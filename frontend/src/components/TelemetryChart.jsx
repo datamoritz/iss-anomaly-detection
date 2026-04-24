@@ -80,11 +80,10 @@ export default function TelemetryChart({
   brushResetKey = '',
 }) {
   const [displayMode, setDisplayMode] = useState('raw')
-  const showToggle = timeRange !== 'recent'
-  // Clamp 'smoothed' to 'raw' when switching to a param without smoothing
-  const activeMode = !showToggle ? 'raw'
-    : (displayMode === 'smoothed' && !showSmoothedOption) ? 'raw'
-    : displayMode
+  // SMOOTHED only available for Cabin Temp on history ranges; CONNECTED available everywhere
+  const showSmoothedInToggle = showSmoothedOption && timeRange !== 'recent'
+  // Clamp 'smoothed' to 'raw' when not available for current param/range
+  const activeMode = (displayMode === 'smoothed' && !showSmoothedInToggle) ? 'raw' : displayMode
 
   // Apply smoothing only for params that support it (Cabin Temp)
   const baseBuffer = (activeMode !== 'raw' && showSmoothedOption)
@@ -161,20 +160,18 @@ export default function TelemetryChart({
 
   return (
     <div className="chart-inner" ref={containerRef}>
-      {showToggle && (
-        <div className="chart-smooth-toggle">
-          <div className="chart-smooth-pills">
-            {['raw', ...(showSmoothedOption ? ['smoothed'] : []), 'connected'].map((mode) => (
-              <button
-                key={mode}
-                className={`chart-smooth-pill ${activeMode === mode ? 'chart-smooth-pill--active' : ''}`}
-                onClick={() => setDisplayMode(mode)}
-              >{mode.toUpperCase()}</button>
-            ))}
-          </div>
-          {showSmoothedOption && <span className="chart-smooth-hint">Visual smoothing only</span>}
+      <div className="chart-smooth-toggle">
+        <div className="chart-smooth-pills">
+          {['raw', ...(showSmoothedInToggle ? ['smoothed'] : []), 'connected'].map((mode) => (
+            <button
+              key={mode}
+              className={`chart-smooth-pill ${activeMode === mode ? 'chart-smooth-pill--active' : ''}`}
+              onClick={() => setDisplayMode(mode)}
+            >{mode.toUpperCase()}</button>
+          ))}
         </div>
-      )}
+        {showSmoothedInToggle && <span className="chart-smooth-hint">Visual smoothing only</span>}
+      </div>
       {yDomain && (
         <button className="chart-reset-y" onClick={() => setYDomain(null)}>
           Reset Y
@@ -217,12 +214,10 @@ export default function TelemetryChart({
           ))}
           {connectedBuf && (
             <Line
-              type="monotone"
+              type="linear"
               dataKey="bridgeValue"
               stroke={series[0]?.color ?? '#22d3ee'}
-              strokeWidth={1.5}
-              strokeDasharray="6 4"
-              strokeOpacity={0.4}
+              strokeWidth={2}
               dot={false}
               isAnimationActive={false}
               connectNulls={false}
