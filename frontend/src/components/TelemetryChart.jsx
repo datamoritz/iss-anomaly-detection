@@ -75,19 +75,28 @@ export default function TelemetryChart({
   series = [{ key: 'value', label: 'value', color: '#22d3ee' }],
   showAnomalyDots = true,
   jumpBreakThreshold = null,
-  showSmoothedToggle = false,
+  showSmoothedOption = false,
   timeRange = 'recent',
 }) {
   const [displayMode, setDisplayMode] = useState('raw')
-  const showToggle  = showSmoothedToggle && timeRange !== 'recent'
-  const activeMode  = showToggle ? displayMode : 'raw'
+  const showToggle = timeRange !== 'recent'
+  // Clamp 'smoothed' to 'raw' when switching to a param without smoothing
+  const activeMode = !showToggle ? 'raw'
+    : (displayMode === 'smoothed' && !showSmoothedOption) ? 'raw'
+    : displayMode
 
-  const smoothedBuf   = activeMode !== 'raw' ? buildSmoothedBuffer(buffer, timeRange) : null
-  const connectedBuf  = activeMode === 'connected' && smoothedBuf
-    ? buildConnectedData(smoothedBuf)
+  // Apply smoothing only for params that support it (Cabin Temp)
+  const baseBuffer = (activeMode !== 'raw' && showSmoothedOption)
+    ? buildSmoothedBuffer(buffer, timeRange)
+    : buffer
+
+  // Gap breaks + angle-wrap breaks on the base buffer
+  const rawChartData  = buildChartData(baseBuffer, series, GAP_BREAK_MS, jumpBreakThreshold)
+  // For connected mode: add bridgeValue across null gaps
+  const connectedBuf  = activeMode === 'connected'
+    ? buildConnectedData(rawChartData)
     : null
-  const displayBuffer = connectedBuf ?? smoothedBuf ?? buffer
-  const chartData     = buildChartData(displayBuffer, series, GAP_BREAK_MS, jumpBreakThreshold)
+  const chartData     = connectedBuf ?? rawChartData
   const [yDomain, setYDomain] = useState(null)
   const [brushStart, setBrushStart] = useState(0)
   const [brushEnd, setBrushEnd] = useState(Math.max(0, chartData.length - 1))
@@ -175,15 +184,15 @@ export default function TelemetryChart({
       {showToggle && (
         <div className="chart-smooth-toggle">
           <div className="chart-smooth-pills">
-            {['raw', 'smoothed', 'connected'].map((mode) => (
+            {['raw', ...(showSmoothedOption ? ['smoothed'] : []), 'connected'].map((mode) => (
               <button
                 key={mode}
-                className={`chart-smooth-pill ${displayMode === mode ? 'chart-smooth-pill--active' : ''}`}
+                className={`chart-smooth-pill ${activeMode === mode ? 'chart-smooth-pill--active' : ''}`}
                 onClick={() => setDisplayMode(mode)}
               >{mode.toUpperCase()}</button>
             ))}
           </div>
-          <span className="chart-smooth-hint">Visual smoothing only</span>
+          {showSmoothedOption && <span className="chart-smooth-hint">Visual smoothing only</span>}
         </div>
       )}
       {yDomain && (

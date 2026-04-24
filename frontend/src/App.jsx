@@ -507,7 +507,7 @@ export default function App() {
             series={chartSeries}
             showAnomalyDots={!isContinuousSolarView(selectedItem)}
             jumpBreakThreshold={selectedItem === SOLAR_JOINT_ITEM ? 180 : null}
-            showSmoothedToggle={selectedItem === CABIN_TEMP_ITEM}
+            showSmoothedOption={selectedItem === CABIN_TEMP_ITEM}
             timeRange={timeRange}
           />
         </div>
