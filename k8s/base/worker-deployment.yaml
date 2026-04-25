@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iss-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: worker
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: worker
+          image: iss-datacenters-backend:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "pipeline.worker"]
+          envFrom:
+            - configMapRef:
+                name: iss-anomaly-config
+            - secretRef:
+                name: iss-anomaly-secrets
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: 750m
+              memory: 768Mi

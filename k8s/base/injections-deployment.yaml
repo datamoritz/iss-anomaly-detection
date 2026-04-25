@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iss-injections
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: injections
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: injections
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: injections
+          image: iss-datacenters-backend:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "injections.service"]
+          envFrom:
+            - configMapRef:
+                name: iss-anomaly-config
+            - secretRef:
+                name: iss-anomaly-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
