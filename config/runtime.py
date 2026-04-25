@@ -22,13 +22,7 @@ def create_redis_client() -> redis.Redis:
 
 
 def create_postgres_connection():
-    conn = psycopg2.connect(
-        host=settings.POSTGRES_HOST,
-        port=settings.POSTGRES_PORT,
-        dbname=settings.POSTGRES_DB,
-        user=settings.POSTGRES_USER,
-        password=settings.POSTGRES_PASSWORD,
-    )
+    conn = psycopg2.connect(settings.postgres_url)
     conn.autocommit = True
     return conn
 

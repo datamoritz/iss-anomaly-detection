@@ -1,4 +1,5 @@
 from functools import lru_cache
+from urllib.parse import urlsplit, urlunsplit
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -93,9 +94,13 @@ class Settings(BaseSettings):
     @property
     def postgres_url(self) -> str:
         if self.DATABASE_URL:
-            return self.DATABASE_URL
+            parsed = urlsplit(self.DATABASE_URL)
+            scheme = parsed.scheme.replace("+psycopg", "")
+            return urlunsplit(
+                (scheme, parsed.netloc, parsed.path, parsed.query, parsed.fragment)
+            )
         return (
-            f"postgresql+psycopg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 

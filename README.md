@@ -269,10 +269,13 @@ Important container notes:
 - The backend image is built from [Dockerfile.backend](/Users/moritzknodler/Documents/00_Lectures/0_Spring%202026/Datacenters/Project/Code/Dockerfile.backend).
 - App containers mount [data](/Users/moritzknodler/Documents/00_Lectures/0_Spring%202026/Datacenters/Project/Code/data) at `/app/data`.
 - Kafka uses `localhost:9092` for host access and `kafka:19092` for container-to-container access.
+- `DATABASE_URL` is the preferred Postgres setting for Kubernetes; discrete `POSTGRES_*`
+  env vars remain as the fallback.
 - `KAFKA_INJECTION_TOPIC` defaults to `injection.jobs`.
 - `KAFKA_INJECTION_CONSUMER_GROUP` defaults to `iss-injection-worker`.
 - `REDIS_TELEMETRY_LIVE_CHANNEL` defaults to `telemetry:live`.
-- `PROTOTYPE_LIBRARY_DIR` defaults to `data/anomaly_prototypes/smap_final9_v01`.
+- `PROTOTYPE_LIBRARY_DIR` defaults to `data/anomaly_prototypes/smap_final9_v01` locally and
+  should point to `/app/prototype-library/smap_final9_v01` in containers/Kubernetes.
 - `INJECTION_MAX_POINTS` defaults to `500`.
 - Set `CORS_ALLOW_ORIGINS` in `.env` to include your future Vercel frontend domain.
 - `COLLECTOR_DIAGNOSTICS_PATH` defaults to `data/diagnostics/collector_gaps.jsonl`.
@@ -301,3 +304,5 @@ Important container notes:
 - The frontend now preloads recent telemetry from Redis and can request historical telemetry from Postgres.
 - The frontend now bootstraps history over HTTP and receives live telemetry updates over FastAPI WebSockets at `/ws/telemetry`.
 - For longer-running server use, prefer `tmux`, `systemd`, or later K8s pods.
+- For Kubernetes, treat the prototype library as read-only image content and mount writable
+  runtime paths separately so a volume mount does not shadow the bundled prototypes.

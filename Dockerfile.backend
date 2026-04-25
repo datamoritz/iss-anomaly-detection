@@ -16,6 +16,7 @@ COPY api ./api
 COPY collector ./collector
 COPY config ./config
 COPY data ./data
+COPY data/anomaly_prototypes ./prototype-library
 COPY injections ./injections
 COPY notifications ./notifications
 COPY pipeline ./pipeline
