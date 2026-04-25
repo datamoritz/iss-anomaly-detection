@@ -2,6 +2,103 @@
 
 Collects public ISS telemetry, stores raw hourly JSONL files, processes live events through Kafka, detects anomalies, and exposes live state through a FastAPI backend.
 
+## Team
+
+- `Moritz Knoedler`
+
+## Contact
+
+- `moritz.knoedler@colorado.edu`
+
+## How To Run
+
+This repository contains the full code for the ISS telemetry anomaly-detection service.
+
+### Local development
+
+1. Create a virtual environment and install Python dependencies:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+2. Create a local environment file:
+
+```bash
+cp .env.example .env
+```
+
+3. Start the backend stack with Docker Compose:
+
+```bash
+docker compose --env-file .env -f infra/docker-compose.yml up -d
+```
+
+4. Start or rebuild the full app stack:
+
+```bash
+docker compose --env-file .env -f infra/docker-compose.yml --profile app up -d --build
+```
+
+5. Start the frontend locally:
+
+```bash
+cd frontend
+npm install
+npm run dev -- --port 5173
+```
+
+### Main runtime entrypoints
+
+- API:
+  - `uvicorn api.app.main:app --reload --host 0.0.0.0 --port 8000`
+- Ingest:
+  - `python -m pipeline.ingest_to_kafka`
+- Worker:
+  - `python -m pipeline.worker`
+- Notifications:
+  - `python -m notifications.service`
+- Injections:
+  - `python -m injections.service`
+- Raw collector:
+  - `python -m collector.main`
+
+## How To Deploy
+
+### Current deployed service
+
+The currently deployed backend uses Docker Compose on the server.
+
+1. SSH to the server
+2. Change into the deployment directory
+3. Run the deployment script
+
+```bash
+ssh deploy@5.78.134.84
+cd /opt/iss-anomaly-app
+./deploy.sh
+```
+
+This deploy script:
+
+- pulls the latest code
+- rebuilds the backend containers
+- restarts the services
+- runs a health check
+
+### Kubernetes / K3s deployment
+
+A Kubernetes/K3s deployment scaffold is also included in this repo:
+
+- stateless app layer:
+  - `kubectl apply -k k8s/base`
+- full single-node K3s stack:
+  - `kubectl apply -k k8s/all`
+- production overlay with ingress:
+  - `kubectl apply -k k8s/production`
+
 ## Current Shape
 
 - `collector/`
