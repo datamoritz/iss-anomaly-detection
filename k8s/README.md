@@ -17,14 +17,19 @@ Scope of this first pass:
 - ClusterIP Service for the API
 
 Not included yet:
-
-- Postgres manifests
-- Redis manifests
-- Kafka manifests
 - Ingress / TLS
 - Persistent volumes for stateful services
 
 The manifests are intended for K3s as well as standard Kubernetes.
+
+It now also includes a simple single-node stateful layer for:
+
+- `postgres`
+- `redis`
+- `kafka`
+
+This stateful layer is intentionally minimal and designed for a single-node K3s setup,
+not for production-grade multi-node Kafka or HA database deployment.
 
 ## Assumptions
 
@@ -37,13 +42,21 @@ The manifests are intended for K3s as well as standard Kubernetes.
 
 ## Apply
 
+Stateless app layer only:
+
 ```bash
 kubectl apply -k k8s/base
+```
+
+Stateful + app together:
+
+```bash
+kubectl apply -k k8s/all
 ```
 
 ## Next steps
 
 1. Replace placeholder image and secret values.
-2. Add stateful services or point these Deployments at external Postgres/Redis/Kafka.
-3. Add Ingress for the API and WebSocket endpoint.
+2. Add Ingress for the API and WebSocket endpoint.
+3. Add storage classes / PVC sizing tuned to the target Hetzner server.
 4. Add resource tuning and, later, service-specific probes for non-HTTP workers if needed.

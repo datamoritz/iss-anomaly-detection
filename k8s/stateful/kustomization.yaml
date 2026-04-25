@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: iss-anomaly-system
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: iss-anomaly-detection
+      app.kubernetes.io/part-of: iss-anomaly-platform
+
+resources:
+  - postgres-service.yaml
+  - postgres-statefulset.yaml
+  - redis-service.yaml
+  - redis-statefulset.yaml
+  - kafka-service.yaml
+  - kafka-statefulset.yaml
