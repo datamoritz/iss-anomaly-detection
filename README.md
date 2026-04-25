@@ -30,16 +30,16 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-3. Start the backend stack with Docker Compose:
+3. Make sure PostgreSQL, Redis, and Kafka are available for local development.
+
+4. Start the backend services from this repo:
 
 ```bash
-docker compose --env-file .env -f infra/docker-compose.yml up -d
-```
-
-4. Start or rebuild the full app stack:
-
-```bash
-docker compose --env-file .env -f infra/docker-compose.yml --profile app up -d --build
+python -m pipeline.ingest_to_kafka
+python -m pipeline.worker
+python -m notifications.service
+python -m injections.service
+uvicorn api.app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 5. Start the frontend locally:
@@ -67,37 +67,38 @@ npm run dev -- --port 5173
 
 ## How To Deploy
 
-### Current deployed service
+### Production deployment on K3s
 
-The currently deployed backend uses Docker Compose on the server.
+The service is deployed on a Hetzner server using a single-node K3s cluster.
 
-1. SSH to the server
-2. Change into the deployment directory
-3. Run the deployment script
+Deployment flow:
 
-```bash
-ssh deploy@5.78.134.84
-cd /opt/iss-anomaly-app
-./deploy.sh
-```
+1. Build and push the backend image
+2. Update any required secrets and image references
+3. Apply the Kubernetes manifests
 
-This deploy script:
-
-- pulls the latest code
-- rebuilds the backend containers
-- restarts the services
-- runs a health check
-
-### Kubernetes / K3s deployment
-
-A Kubernetes/K3s deployment scaffold is also included in this repo:
+Main deployment targets:
 
 - stateless app layer:
   - `kubectl apply -k k8s/base`
 - full single-node K3s stack:
   - `kubectl apply -k k8s/all`
-- production overlay with ingress:
+- production overlay with ingress/TLS host patching:
   - `kubectl apply -k k8s/production`
+
+The production overlay is configured for:
+
+- API host:
+  - `iss-api.moritzknodler.com`
+- frontend origin:
+  - `https://iss-anomaly-detection.moritzknodler.com`
+
+Before applying in production, update:
+
+- image names
+- TLS secret
+- application secrets
+- storage sizing if needed
 
 ## Current Shape
 
@@ -336,21 +337,9 @@ Default backend URL expected by the frontend:
 http://localhost:8000
 ```
 
-## Docker Compose
+## Kubernetes / K3s Runtime
 
-Infrastructure only:
-
-```bash
-docker compose --env-file .env -f infra/docker-compose.yml up -d
-```
-
-Full backend stack in containers:
-
-```bash
-docker compose --env-file .env -f infra/docker-compose.yml --profile app up -d --build
-```
-
-Container services:
+Cluster services:
 
 - `postgres`
 - `redis`
@@ -361,11 +350,15 @@ Container services:
 - `notifications`
 - `injections`
 
-Important container notes:
+Important runtime notes:
 
 - The backend image is built from [Dockerfile.backend](/Users/moritzknodler/Documents/00_Lectures/0_Spring%202026/Datacenters/Project/Code/Dockerfile.backend).
-- App containers mount [data](/Users/moritzknodler/Documents/00_Lectures/0_Spring%202026/Datacenters/Project/Code/data) at `/app/data`.
-- Kafka uses `localhost:9092` for host access and `kafka:19092` for container-to-container access.
+- The Kubernetes manifests live under [k8s](/Users/moritzknodler/Documents/00_Lectures/0_Spring%202026/Datacenters/Project/Code/k8s).
+- In-cluster service names are:
+  - `postgres`
+  - `redis`
+  - `kafka`
+- Kafka uses the in-cluster broker address `kafka:9092`.
 - `DATABASE_URL` is the preferred Postgres setting for Kubernetes; discrete `POSTGRES_*`
   env vars remain as the fallback.
 - `KAFKA_INJECTION_TOPIC` defaults to `injection.jobs`.
@@ -391,6 +384,9 @@ Important container notes:
   - `RESEND_API_KEY`
   - `EMAIL_FROM`
   - `APP_BASE_URL`
+- Ingress and production host patching live under:
+  - [k8s/edge](/Users/moritzknodler/Documents/00_Lectures/0_Spring%202026/Datacenters/Project/Code/k8s/edge)
+  - [k8s/production](/Users/moritzknodler/Documents/00_Lectures/0_Spring%202026/Datacenters/Project/Code/k8s/production)
 
 ## Important Notes
 
@@ -400,6 +396,5 @@ Important container notes:
 - Your existing hourly JSONL collection for neural-net work can remain separate from the app pipeline.
 - The frontend now preloads recent telemetry from Redis and can request historical telemetry from Postgres.
 - The frontend now bootstraps history over HTTP and receives live telemetry updates over FastAPI WebSockets at `/ws/telemetry`.
-- For longer-running server use, prefer `tmux`, `systemd`, or later K8s pods.
 - For Kubernetes, treat the prototype library as read-only image content and mount writable
   runtime paths separately so a volume mount does not shadow the bundled prototypes.
