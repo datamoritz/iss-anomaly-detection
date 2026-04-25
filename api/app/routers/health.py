@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from config.runtime import (
@@ -16,17 +16,21 @@ router = APIRouter(tags=["health"])
 
 
 @router.get("/health/live")
-def health_live():
-    return {"status": "ok"}
+def health_live(request: Request):
+    return {
+        "status": "ok",
+        "startup_ready": bool(getattr(request.app.state, "startup_ready", False)),
+    }
 
-
-@router.get("/health")
-def health_check():
+def build_readiness_payload(request: Request) -> tuple[dict, int]:
     redis_ok, redis_message = check_redis()
     postgres_ok, postgres_message = check_postgres()
     kafka_ok, kafka_message = check_kafka()
+    startup_ready = bool(getattr(request.app.state, "startup_ready", False))
+    startup_error = getattr(request.app.state, "startup_error", None)
 
     checks = {
+        "startup": {"ok": startup_ready, "message": startup_error or "ok"},
         "redis": {"ok": redis_ok, "message": redis_message},
         "postgres": {"ok": postgres_ok, "message": postgres_message},
         "kafka": {"ok": kafka_ok, "message": kafka_message},
@@ -66,4 +70,16 @@ def health_check():
         "checks": checks,
     }
     status_code = 200 if healthy else 503
+    return payload, status_code
+
+
+@router.get("/health/ready")
+def health_ready(request: Request):
+    payload, status_code = build_readiness_payload(request)
+    return JSONResponse(status_code=status_code, content=payload)
+
+
+@router.get("/health")
+def health_check(request: Request):
+    payload, status_code = build_readiness_payload(request)
     return JSONResponse(status_code=status_code, content=payload)

@@ -1,4 +1,5 @@
 import math
+import time
 from kafka.admin import KafkaAdminClient
 import psycopg2
 import redis
@@ -446,3 +447,31 @@ def check_kafka() -> tuple[bool, str]:
     finally:
         if client is not None:
             client.close()
+
+
+def retry_operation(
+    operation_name: str,
+    fn,
+    *,
+    attempts: int | None = None,
+    delay_seconds: int | None = None,
+):
+    attempts = attempts or settings.STARTUP_DEPENDENCY_RETRY_ATTEMPTS
+    delay_seconds = delay_seconds or settings.STARTUP_DEPENDENCY_RETRY_DELAY_SECONDS
+    last_error = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            return fn()
+        except Exception as exc:
+            last_error = exc
+            print(
+                f"[startup] {operation_name} failed "
+                f"(attempt {attempt}/{attempts}): {exc}"
+            )
+            if attempt < attempts:
+                time.sleep(delay_seconds)
+
+    raise RuntimeError(
+        f"{operation_name} failed after {attempts} attempts: {last_error}"
+    ) from last_error

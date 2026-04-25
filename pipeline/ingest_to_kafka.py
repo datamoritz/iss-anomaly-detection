@@ -6,6 +6,7 @@ from typing import Optional
 
 from config.settings import settings
 from config.stream_monitoring import StreamMonitor
+from config.runtime import retry_operation
 
 from kafka import KafkaProducer
 from lightstreamer.client import LightstreamerClient, Subscription
@@ -175,7 +176,7 @@ def main():
     signal.signal(signal.SIGTERM, handle_shutdown)
 
     print("[startup] creating Kafka producer...")
-    producer = create_producer()
+    producer = retry_operation("ingest kafka producer startup", create_producer)
 
     print("[startup] ingest_to_kafka is running")
     print(f"[startup] topic={KAFKA_TOPIC}")

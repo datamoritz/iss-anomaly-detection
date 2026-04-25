@@ -14,6 +14,7 @@ from config.runtime import (
     create_redis_client,
     ensure_postgres_schema,
     insert_telemetry_history,
+    retry_operation,
     upsert_service_status,
 )
 
@@ -443,20 +444,20 @@ def main() -> None:
     signal.signal(signal.SIGTERM, handle_shutdown)
 
     print("[startup] connecting to Redis...")
-    redis_client = create_redis_client()
-    redis_client.ping()
+    redis_client = retry_operation("worker redis startup", create_redis_client)
+    retry_operation("worker redis ping", redis_client.ping)
     print("[startup] Redis connected")
 
     print("[startup] connecting to Postgres...")
-    pg_conn = create_postgres_connection()
-    ensure_postgres_schema(pg_conn)
+    pg_conn = retry_operation("worker postgres startup", create_postgres_connection)
+    retry_operation("worker schema initialization", lambda: ensure_postgres_schema(pg_conn))
     print("[startup] Postgres connected and tables ensured")
 
     print("[startup] creating Kafka producer...")
-    producer = create_kafka_producer()
+    producer = retry_operation("worker kafka producer startup", create_kafka_producer)
 
     print("[startup] creating Kafka consumer...")
-    consumer = create_kafka_consumer()
+    consumer = retry_operation("worker kafka consumer startup", create_kafka_consumer)
 
     previous_values: dict[str, Optional[float]] = {}
     suppress_real_anomalies_until: dict[str, float] = {}

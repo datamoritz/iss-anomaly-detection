@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from config.runtime import create_postgres_connection, ensure_postgres_schema
+from config.runtime import create_postgres_connection, ensure_postgres_schema, retry_operation
 
 from .config import settings
 from .routers import health, telemetry, anomalies, simulation, items, subscriptions, injections, stream
@@ -12,11 +12,24 @@ from .routers import health, telemetry, anomalies, simulation, items, subscripti
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     conn = None
+    app.state.startup_ready = False
+    app.state.startup_error = None
     try:
-        conn = create_postgres_connection()
-        ensure_postgres_schema(conn)
+        conn = retry_operation(
+            "api postgres startup",
+            create_postgres_connection,
+        )
+        retry_operation(
+            "api schema initialization",
+            lambda: ensure_postgres_schema(conn),
+        )
+        app.state.startup_ready = True
         yield
+    except Exception as exc:
+        app.state.startup_error = str(exc)
+        raise
     finally:
+        app.state.startup_ready = False
         if conn is not None:
             conn.close()
 

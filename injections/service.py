@@ -11,7 +11,7 @@ from time import time as unix_time
 import numpy as np
 from kafka import KafkaConsumer, KafkaProducer
 
-from config.runtime import create_postgres_connection, ensure_postgres_schema
+from config.runtime import create_postgres_connection, ensure_postgres_schema, retry_operation
 from config.settings import settings
 
 
@@ -266,15 +266,18 @@ def main() -> None:
     signal.signal(signal.SIGTERM, handle_shutdown)
 
     print("[startup] connecting to Postgres...")
-    pg_conn = create_postgres_connection()
-    ensure_postgres_schema(pg_conn)
+    pg_conn = retry_operation("injections postgres startup", create_postgres_connection)
+    retry_operation(
+        "injections schema initialization",
+        lambda: ensure_postgres_schema(pg_conn),
+    )
     print("[startup] Postgres connected")
 
     print("[startup] creating Kafka producer...")
-    producer = create_kafka_producer()
+    producer = retry_operation("injections kafka producer startup", create_kafka_producer)
 
     print("[startup] creating Kafka consumer...")
-    consumer = create_kafka_consumer()
+    consumer = retry_operation("injections kafka consumer startup", create_kafka_consumer)
 
     print("[startup] injection worker is running")
     print(f"[startup] consuming topic={INJECTION_TOPIC}")

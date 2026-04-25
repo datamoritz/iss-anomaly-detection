@@ -113,6 +113,8 @@ Current endpoints:
 
 - `GET /`
 - `GET /health`
+- `GET /health/live`
+- `GET /health/ready`
 - `GET /api/v1/items`
 - `GET /api/v1/items/{item_id}`
 - `GET /api/v1/telemetry/latest`
@@ -144,8 +146,10 @@ Notes:
 - Postgres stores durable telemetry history for this app in `telemetry_history`.
 - Postgres also stores email subscriptions and notification logs.
 - Verification emails are sent by the API; anomaly alert emails are sent by the separate notification consumer.
-- `/health` now checks Redis, Postgres, and Kafka.
-- `/health/live` is a simple liveness route.
+- `/health/live` is the liveness route and `/health/ready` is the readiness route.
+- `/health` returns the same readiness checks for convenience.
+- Services retry dependency connections on startup so short-lived Redis/Postgres/Kafka delays
+  do not immediately crash the container.
 - Postgres schema setup is deterministic and runs from shared code on API startup and worker startup.
 - Telemetry history retention is enforced once per day in the worker and deletes rows older than 28 days by default.
 

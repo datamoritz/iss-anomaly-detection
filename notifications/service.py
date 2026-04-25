@@ -4,7 +4,7 @@ from typing import Any
 
 from kafka import KafkaConsumer
 
-from config.runtime import create_postgres_connection, ensure_postgres_schema
+from config.runtime import create_postgres_connection, ensure_postgres_schema, retry_operation
 from config.settings import settings
 
 from .email_provider import send_email
@@ -219,12 +219,21 @@ def main() -> None:
     signal.signal(signal.SIGTERM, handle_shutdown)
 
     print("[startup] connecting to Postgres...")
-    pg_conn = create_postgres_connection()
-    ensure_postgres_schema(pg_conn)
+    pg_conn = retry_operation(
+        "notifications postgres startup",
+        create_postgres_connection,
+    )
+    retry_operation(
+        "notifications schema initialization",
+        lambda: ensure_postgres_schema(pg_conn),
+    )
     print("[startup] Postgres connected and tables ensured")
 
     print("[startup] creating Kafka consumer...")
-    consumer = create_kafka_consumer()
+    consumer = retry_operation(
+        "notifications kafka consumer startup",
+        create_kafka_consumer,
+    )
     print(f"[startup] notification consumer is running topic={settings.KAFKA_ANOMALY_TOPIC}")
 
     processed = 0
