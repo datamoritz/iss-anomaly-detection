@@ -17,8 +17,8 @@ Scope of this first pass:
 - ClusterIP Service for the API
 
 Not included yet:
-- Ingress / TLS
-- Persistent volumes for stateful services
+- production-grade TLS automation
+- production-grade multi-node stateful infrastructure
 
 The manifests are intended for K3s as well as standard Kubernetes.
 
@@ -54,9 +54,30 @@ Stateful + app together:
 kubectl apply -k k8s/all
 ```
 
+Stateful + app + ingress/TLS host patching:
+
+```bash
+kubectl apply -k k8s/production
+```
+
 ## Next steps
 
 1. Replace placeholder image and secret values.
-2. Add Ingress for the API and WebSocket endpoint.
+2. Create the TLS secret referenced by the ingress, or replace it with cert-manager.
 3. Add storage classes / PVC sizing tuned to the target Hetzner server.
 4. Add resource tuning and, later, service-specific probes for non-HTTP workers if needed.
+
+## Ingress / WebSockets
+
+- `k8s/edge` contains a Traefik-compatible Ingress for the FastAPI service.
+- WebSockets for `/ws/telemetry` use the same `iss-api` Service and do not require a
+  separate backend.
+- `k8s/production` layers the edge ingress onto the full stack and patches:
+  - `APP_BASE_URL`
+  - `CORS_ALLOW_ORIGINS`
+  - the public API host / TLS secret name
+
+Current production patch values target:
+
+- API host: `iss-api.moritzknodler.com`
+- frontend origin: `https://iss-anomaly-detection.moritzknodler.com`
