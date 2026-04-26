@@ -107,17 +107,13 @@ function getWindowMs(range) {
 }
 
 function appendPointForRange(prev, point, range) {
+  if (range !== 'recent') return prev
+
   const lastPoint = prev[prev.length - 1]
   if (lastPoint?.timestamp_utc === point.timestamp_utc) return prev
   if (lastPoint?.t != null && point.t <= lastPoint.t) return prev
 
-  if (range === 'recent') {
-    return [...prev, point].slice(-MAX_POINTS)
-  }
-
-  const windowMs = getWindowMs(range)
-  const cutoff = point.t - windowMs
-  return [...prev.filter((entry) => entry.t >= cutoff), point]
+  return [...prev, point].slice(-MAX_POINTS)
 }
 
 export default function App() {
